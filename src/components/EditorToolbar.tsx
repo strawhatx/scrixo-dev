@@ -6,10 +6,11 @@ import {
   Download, 
   Undo2, 
   Redo2,
-  ZoomIn,
-  ZoomOut,
-  ChevronLeft,
-  ChevronRight
+  Minus,
+  Plus,
+  Search,
+  User,
+  MoreHorizontal
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -48,107 +49,114 @@ export function EditorToolbar({
   onRedo,
   onZoomIn,
   onZoomOut,
-  onPrevPage,
-  onNextPage,
-  currentPage,
-  totalPages,
   zoom,
   canUndo,
   canRedo,
   signatureUsed,
 }: EditorToolbarProps) {
   return (
-    <div className="flex items-center justify-between bg-card border-b border-border px-4 py-2">
-      {/* Left: Tools */}
+    <div className="flex items-center justify-between bg-card border-b border-border px-4 py-1.5">
+      {/* Left: Tools with icons and labels */}
       <div className="flex items-center gap-1">
         {tools.map((tool) => (
-          <Button
+          <button
             key={tool.id}
-            variant={activeTool === tool.id ? "toolbar-active" : "toolbar"}
-            size="sm"
             onClick={() => onToolChange(tool.id)}
-            className="gap-2"
+            className={`flex flex-col items-center justify-center px-3 py-1.5 rounded-lg transition-colors min-w-[52px] ${
+              activeTool === tool.id
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
           >
-            <tool.icon className="w-4 h-4" />
-            <span className="hidden sm:inline">{tool.label}</span>
+            <tool.icon className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] font-medium">{tool.label}</span>
             {tool.id === "sign" && !signatureUsed && (
-              <span className="text-xs bg-success/20 text-success px-1.5 py-0.5 rounded-full">
+              <span className="absolute -top-1 -right-1 text-[8px] bg-success text-success-foreground px-1 rounded-full">
                 Free
               </span>
             )}
-          </Button>
+          </button>
         ))}
+        
+        <Separator orientation="vertical" className="h-10 mx-2" />
+        
+        {/* More tools placeholder */}
+        <button className="flex flex-col items-center justify-center px-3 py-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground min-w-[52px]">
+          <MoreHorizontal className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px] font-medium">More</span>
+        </button>
       </div>
 
-      {/* Center: Navigation and Zoom */}
-      <div className="flex items-center gap-2">
+      {/* Center: Undo/Redo and Zoom */}
+      <div className="flex items-center gap-1">
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon"
           onClick={onUndo}
           disabled={!canUndo}
+          className="w-8 h-8"
         >
           <Undo2 className="w-4 h-4" />
         </Button>
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon"
           onClick={onRedo}
           disabled={!canRedo}
+          className="w-8 h-8"
         >
           <Redo2 className="w-4 h-4" />
         </Button>
         
-        <Separator orientation="vertical" className="h-6 mx-2" />
+        <Separator orientation="vertical" className="h-6 mx-3" />
         
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onZoomOut}
-          disabled={zoom <= 50}
-        >
-          <ZoomOut className="w-4 h-4" />
-        </Button>
-        <span className="text-sm font-medium text-muted-foreground w-14 text-center">
-          {zoom}%
-        </span>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onZoomIn}
-          disabled={zoom >= 200}
-        >
-          <ZoomIn className="w-4 h-4" />
-        </Button>
-
-        <Separator orientation="vertical" className="h-6 mx-2" />
-
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onPrevPage}
-          disabled={currentPage <= 1}
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </Button>
-        <span className="text-sm font-medium text-muted-foreground">
-          {currentPage} / {totalPages}
-        </span>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onNextPage}
-          disabled={currentPage >= totalPages}
-        >
-          <ChevronRight className="w-4 h-4" />
+        <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg px-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onZoomOut}
+            disabled={zoom <= 50}
+            className="w-7 h-7"
+          >
+            <Minus className="w-3.5 h-3.5" />
+          </Button>
+          <span className="text-xs font-medium text-foreground w-12 text-center">
+            {zoom}%
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onZoomIn}
+            disabled={zoom >= 200}
+            className="w-7 h-7"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+        
+        <Button variant="ghost" size="icon" className="w-8 h-8">
+          <Search className="w-4 h-4" />
         </Button>
       </div>
 
-      {/* Right: Download */}
-      <Button variant="default" onClick={onDownload} className="gap-2">
-        <Download className="w-4 h-4" />
-        <span className="hidden sm:inline">Download PDF</span>
-      </Button>
+      {/* Right: User, Share, Download */}
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="w-8 h-8">
+          <User className="w-4 h-4" />
+        </Button>
+        
+        <Button variant="outline" size="sm" className="h-8 px-4">
+          Share
+        </Button>
+        
+        <Button 
+          onClick={onDownload} 
+          className="gap-2 h-8 px-4 bg-foreground text-background hover:bg-foreground/90"
+        >
+          <Download className="w-4 h-4" />
+          Download
+        </Button>
+      </div>
     </div>
   );
 }
