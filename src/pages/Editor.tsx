@@ -181,35 +181,17 @@ export default function Editor() {
 
       <div className="min-h-screen bg-background flex flex-col">
         {/* Header */}
-        <header className="bg-card border-b border-border px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => navigate("/")}
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-hero rounded-lg flex items-center justify-center">
-                <FileText className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-display text-lg font-bold text-foreground">PDFOtter</span>
+        <header className="bg-card border-b border-border px-4 py-3 flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-hero rounded-lg flex items-center justify-center">
+              <FileText className="w-4 h-4 text-primary-foreground" />
             </div>
-            {file && (
-              <span className="text-sm text-muted-foreground hidden sm:block">
-                {file.name}
-              </span>
-            )}
+            <span className="font-display text-lg font-bold text-foreground">PDFOtter</span>
           </div>
-
-          {!signatureUsed && (
-            <div className="hidden md:flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Free: 1 signature left</span>
-              <Button variant="outline" size="sm" onClick={() => setShowUpgradeModal(true)}>
-                Upgrade
-              </Button>
-            </div>
+          {file && (
+            <span className="text-sm text-muted-foreground hidden sm:block">
+              {file.name}
+            </span>
           )}
         </header>
 

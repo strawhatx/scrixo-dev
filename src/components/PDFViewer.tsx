@@ -25,12 +25,14 @@ interface SignatureOverlay {
   page: number;
 }
 
+import { ToolType } from "@/components/EditorToolbar";
+
 interface PDFViewerProps {
   file: File;
   zoom: number;
   currentPage: number;
   onPageCountChange: (count: number) => void;
-  activeTool: "select" | "text" | "sign";
+  activeTool: ToolType;
   onSignRequest: () => void;
   textOverlays: TextOverlay[];
   onTextOverlaysChange: (overlays: TextOverlay[]) => void;
