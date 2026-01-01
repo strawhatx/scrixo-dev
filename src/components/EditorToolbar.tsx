@@ -18,6 +18,8 @@ import {
   Plus,
   Search,
   User,
+  Save,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -28,6 +30,8 @@ interface EditorToolbarProps {
   activeTool: ToolType;
   onToolChange: (tool: ToolType) => void;
   onDownload: () => void;
+  onSave?: () => void;
+  isSaving?: boolean;
   onUndo: () => void;
   onRedo: () => void;
   onZoomIn: () => void;
@@ -40,6 +44,7 @@ interface EditorToolbarProps {
   canUndo: boolean;
   canRedo: boolean;
   signatureUsed: boolean;
+  isFree?: boolean;
 }
 
 const tools = [
@@ -63,6 +68,8 @@ export function EditorToolbar({
   activeTool,
   onToolChange,
   onDownload,
+  onSave,
+  isSaving,
   onUndo,
   onRedo,
   onZoomIn,
@@ -70,6 +77,7 @@ export function EditorToolbar({
   zoom,
   canUndo,
   canRedo,
+  isFree,
 }: EditorToolbarProps) {
   return (
     <div className="flex items-center justify-between bg-card border-b border-border px-4 py-1">
@@ -166,6 +174,22 @@ export function EditorToolbar({
         <Button variant="outline" size="sm" className="h-8 px-4">
           Share
         </Button>
+
+        {onSave && !isFree && (
+          <Button 
+            onClick={onSave} 
+            disabled={isSaving}
+            variant="outline"
+            className="gap-2 h-8 px-4 border-primary text-primary hover:bg-primary/5"
+          >
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            Save
+          </Button>
+        )}
         
         <Button 
           onClick={onDownload} 
