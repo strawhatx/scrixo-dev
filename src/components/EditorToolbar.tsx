@@ -1,4 +1,7 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { 
   MousePointer2, 
   Type, 
@@ -116,8 +119,13 @@ export function EditorFloatingControls({
   canUndo: boolean;
   canRedo: boolean;
 }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const content = useMemo(() => {
   return (
-    <div className="flex items-center gap-1 bg-card/80 backdrop-blur-md border border-border shadow-lg rounded-full px-2 py-1">
+      <div className="pointer-events-none fixed inset-x-0 bottom-4 pb-[env(safe-area-inset-bottom)] flex justify-center z-[60]">
+        <div className="pointer-events-auto flex items-center gap-1 bg-card/80 backdrop-blur-md border border-border shadow-lg rounded-full px-2 py-1">
       <Button
         variant="ghost"
         size="icon"
@@ -160,6 +168,11 @@ export function EditorFloatingControls({
       >
         <Plus className="w-4 h-4" />
       </Button>
+        </div>
     </div>
   );
+  }, [canRedo, canUndo, onRedo, onUndo, onZoomIn, onZoomOut, zoom]);
+
+  if (!mounted) return null;
+  return createPortal(content, document.body);
 }

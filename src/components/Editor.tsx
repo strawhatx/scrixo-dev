@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Download, FileText, Loader2, Save, Search } from "lucide-react";
 import { useEditor } from "@/hooks/useEditor";
 import { PDFViewer } from "@/components/PDFViewerClient";
@@ -16,6 +16,15 @@ import { Button } from "@/components/ui/button";
 export default function Editor() {
   const editor = useEditor();
 
+  // Ensure the editor is a fixed viewport shell; the PDF viewport is the only scroller.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
   if (editor.loading) {
     return <EditorLoadingState />;
   }
@@ -25,8 +34,8 @@ export default function Editor() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex overflow-hidden font-sans select-none">
-      <main className="flex-1 min-w-0 flex flex-col min-h-screen overflow-hidden">
+    <div className="h-dvh bg-background text-foreground flex overflow-hidden font-sans select-none">
+      <main className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
         <div className="shrink-0 w-full sticky top-0 z-20">
           <EditorHeader
             filename={editor.file.name}
@@ -75,9 +84,7 @@ export default function Editor() {
             }}
           />
 
-          {/* Floating bottom controls */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-8 flex justify-center z-30">
-            <div className="pointer-events-auto">
+          {/* Floating bottom controls (portaled to body for true viewport positioning) */}
               <EditorFloatingControls
                 onUndo={editor.undo}
                 onRedo={editor.redo}
@@ -87,8 +94,6 @@ export default function Editor() {
                 canUndo={editor.historyIndex > 0}
                 canRedo={editor.historyIndex < editor.historyLength - 1}
               />
-            </div>
-          </div>
         </div>
 
         {/* Modals */}
@@ -106,12 +111,12 @@ export default function Editor() {
       </main>
 
       {/* Vertical Ad Space */}
-      <aside className="w-[300px] bg-muted/30 border-l border-border hidden xl:flex xl:flex-col shrink-0">
+      <aside className="w-[300px] bg-muted/30 border-l border-border hidden xl:flex xl:flex-col shrink-0 min-h-0 overflow-hidden">
         <div className="p-4 border-b border-border flex items-center justify-between">
           <span className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">Advertisement</span>
           <Search className="w-3 h-3 text-muted-foreground/20" />
         </div>
-        <div className="flex-1 p-4">
+        <div className="flex-1 p-4 min-h-0 overflow-hidden">
           <div className="w-full h-full bg-background rounded-xl border border-dashed border-border flex flex-col items-center justify-center gap-4 text-muted-foreground/20 italic">
             <div className="text-center space-y-1">
               <p className="text-sm font-medium">Ad Space</p>
@@ -130,7 +135,7 @@ export default function Editor() {
 
 function EditorLoadingState() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="h-dvh flex items-center justify-center bg-background">
       <div className="text-center space-y-4">
         <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto" />
         <p className="text-muted-foreground font-medium">Preparing your workspace...</p>

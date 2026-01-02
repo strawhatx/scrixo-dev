@@ -48,13 +48,17 @@ export function PDFViewer({
   pendingSignature,
   onPendingSignaturePlaced,
 }: PDFViewerProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const renderTaskRef = useRef<ReturnType<pdfjs.PDFPageProxy["render"]> | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pagesListRef = useRef<HTMLDivElement>(null);
+  const pageContainerRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const pageCanvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
+  const renderTasksRef = useRef<Map<number, ReturnType<pdfjs.PDFPageProxy["render"]>>>(new Map());
   const [loading, setLoading] = useState(true);
   const [pdfDoc, setPdfDoc] = useState<pdfjs.PDFDocumentProxy | null>(null);
-  const [pageSize, setPageSize] = useState({ width: 0, height: 0 });
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [pageLayouts, setPageLayouts] = useState<Array<{ page: number; width: number; height: number }>>(
+    []
+  );
   const pageNumbers = useMemo(
     () => Array.from({ length: pdfDoc?.numPages ?? 0 }, (_, i) => i + 1),
     [pdfDoc?.numPages]
@@ -102,89 +106,110 @@ export function PDFViewer({
     };
   }, [file, onPageCountChange]);
 
-  // Render page
+  // Render all pages (continuous scroll)
   useEffect(() => {
-    if (!pdfDoc || !canvasRef.current) return;
+    if (!pdfDoc) return;
 
     let cancelled = false;
 
-    const renderPage = async () => {
-      // Cancel any in-flight render using this canvas before starting a new one.
-      try {
-        renderTaskRef.current?.cancel?.();
-      } catch {
-        // ignore
-      }
-
-      const page = await pdfDoc.getPage(currentPage);
-      if (cancelled) return;
-
+    const renderAllPages = async () => {
       const scale = zoom / 100;
       // NOTE: We intentionally ignore the PDF's embedded page rotation (`page.rotate`).
       // Some PDFs have incorrect rotation metadata; other viewers often appear to "fix"
       // it, but PDF.js will faithfully apply it. We keep a user-controlled rotation
       // instead, so the default matches what most users expect.
-      const viewport = page.getViewport({ scale, rotation });
-
-      const canvas = canvasRef.current!;
-      const context = canvas.getContext("2d")!;
-
       const outputScale =
         typeof window !== "undefined" && window.devicePixelRatio
           ? window.devicePixelRatio
           : 1;
 
-      // Keep a crisp canvas on HiDPI displays while preserving CSS pixel size.
+      // Cancel any in-flight renders before starting a new pass.
+      for (const task of renderTasksRef.current.values()) {
+        try {
+          task.cancel?.();
+        } catch {
+          // ignore
+        }
+      }
+      renderTasksRef.current.clear();
+
+      // Compute page layouts so we can render all pages in order.
+      const layouts: Array<{ page: number; width: number; height: number }> = [];
+      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        const page = await pdfDoc.getPage(pageNum);
+        if (cancelled) return;
+        const viewport = page.getViewport({ scale, rotation });
+        layouts.push({ page: pageNum, width: viewport.width, height: viewport.height });
+      }
+      if (cancelled) return;
+      setPageLayouts(layouts);
+
+      // Wait a frame for canvases to mount.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      if (cancelled) return;
+
+      // Render sequentially so pages "load in order".
+      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        const canvas = pageCanvasRefs.current.get(pageNum);
+        if (!canvas) continue;
+
+        const page = await pdfDoc.getPage(pageNum);
+        if (cancelled) return;
+
+        const viewport = page.getViewport({ scale, rotation });
+        const context = canvas.getContext("2d");
+        if (!context) continue;
+
       canvas.width = Math.floor(viewport.width * outputScale);
       canvas.height = Math.floor(viewport.height * outputScale);
       canvas.style.width = `${viewport.width}px`;
       canvas.style.height = `${viewport.height}px`;
 
-      // Reset any prior transforms to avoid accumulating transforms.
       context.setTransform(1, 0, 0, 1, 0, 0);
       context.clearRect(0, 0, canvas.width, canvas.height);
-
-      setPageSize({ width: viewport.width, height: viewport.height });
 
       const renderContext = {
         canvasContext: context,
         viewport,
-        // PDF.js recommended HiDPI rendering: keep viewport in CSS pixels and pass a transform.
         transform:
           outputScale !== 1 ? ([outputScale, 0, 0, outputScale, 0, 0] as const) : undefined,
       };
 
       const task = page.render(renderContext as any);
-      renderTaskRef.current = task;
+        renderTasksRef.current.set(pageNum, task);
 
       try {
         await task.promise;
       } catch (err: any) {
-        // Expected during rapid zoom/page changes.
         if (err?.name !== "RenderingCancelledException") throw err;
       } finally {
-        if (renderTaskRef.current === task) {
-          renderTaskRef.current = null;
+          if (renderTasksRef.current.get(pageNum) === task) {
+            renderTasksRef.current.delete(pageNum);
+          }
         }
       }
     };
 
-    renderPage();
+    renderAllPages();
     return () => {
       cancelled = true;
+      for (const task of renderTasksRef.current.values()) {
       try {
-        renderTaskRef.current?.cancel?.();
+          task.cancel?.();
       } catch {
         // ignore
       }
+      }
+      renderTasksRef.current.clear();
     };
-  }, [pdfDoc, currentPage, zoom, rotation]);
+  }, [pdfDoc, zoom, rotation]);
 
-  // Handle canvas click for placing elements
-  const handleCanvasClick = useCallback((e: React.MouseEvent) => {
-    if (!containerRef.current) return;
+  // Handle click for placing elements on a specific page
+  const handlePageClick = useCallback((pageNum: number, e: React.MouseEvent) => {
+    const container = pageContainerRefs.current.get(pageNum);
+    if (!container) return;
 
-    const rect = containerRef.current.getBoundingClientRect();
+    const rect = container.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
@@ -195,7 +220,7 @@ export function PDFViewer({
         x,
         y,
         fontSize: DEFAULT_FONT_SIZE_PX * (zoom / 100),
-        page: currentPage,
+        page: pageNum,
       };
       onTextOverlaysChange([...textOverlays, newText]);
       setEditingTextId(newText.id);
@@ -209,7 +234,7 @@ export function PDFViewer({
           y: y - height / 2,
           width,
           height,
-          page: currentPage,
+          page: pageNum,
         };
         onSignatureOverlaysChange([...signatureOverlays, newSig]);
         onPendingSignaturePlaced();
@@ -219,7 +244,6 @@ export function PDFViewer({
     }
   }, [
     activeTool,
-    currentPage,
     onPendingSignaturePlaced,
     onSignRequest,
     onSignatureOverlaysChange,
@@ -239,14 +263,68 @@ export function PDFViewer({
 
   const handleTextBlur = useCallback(() => setEditingTextId(null), []);
 
-  const currentPageTextOverlays = useMemo(
-    () => textOverlays.filter((t) => t.page === currentPage),
-    [currentPage, textOverlays]
+  const scrollToPage = useCallback((pageNum: number) => {
+    const scroller = scrollRef.current;
+    const el = pageContainerRefs.current.get(pageNum);
+    if (!scroller || !el) return;
+    const scrollerRect = scroller.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const top = scroller.scrollTop + (elRect.top - scrollerRect.top) - 16;
+    scroller.scrollTo({ top, behavior: "smooth" });
+  }, []);
+
+  // Keep the active page button visible in the sidebar when currentPage changes (via scroll or click).
+  useEffect(() => {
+    const list = pagesListRef.current;
+    if (!list) return;
+    const btn = list.querySelector<HTMLButtonElement>(`button[data-page="${currentPage}"]`);
+    btn?.scrollIntoView({ block: "nearest" });
+  }, [currentPage]);
+
+  const handleScroll = useCallback(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const anchor = scroller.scrollTop + scroller.clientHeight * 0.35;
+
+    let active = 1;
+    for (const layout of pageLayouts) {
+      const el = pageContainerRefs.current.get(layout.page);
+      if (!el) continue;
+      if (el.offsetTop <= anchor) active = layout.page;
+      else break;
+    }
+    if (active !== currentPage) onPageChange(active);
+  }, [currentPage, onPageChange, pageLayouts]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (editingTextId) return;
+      if (e.key === "PageDown") {
+        e.preventDefault();
+        scrollToPage(Math.min(currentPage + 1, pdfDoc?.numPages ?? currentPage + 1));
+      }
+      if (e.key === "PageUp") {
+        e.preventDefault();
+        scrollToPage(Math.max(currentPage - 1, 1));
+      }
+    },
+    [currentPage, editingTextId, pdfDoc?.numPages, scrollToPage]
   );
-  const currentPageSignatures = useMemo(
-    () => signatureOverlays.filter((s) => s.page === currentPage),
-    [currentPage, signatureOverlays]
-  );
+
+  const overlaysByPage = useMemo(() => {
+    const byPage = new Map<number, { texts: TextOverlay[]; sigs: SignatureOverlay[] }>();
+    for (const t of textOverlays) {
+      const entry = byPage.get(t.page) ?? { texts: [], sigs: [] };
+      entry.texts.push(t);
+      byPage.set(t.page, entry);
+    }
+    for (const s of signatureOverlays) {
+      const entry = byPage.get(s.page) ?? { texts: [], sigs: [] };
+      entry.sigs.push(s);
+      byPage.set(s.page, entry);
+    }
+    return byPage;
+  }, [signatureOverlays, textOverlays]);
 
   if (loading) {
     return (
@@ -272,14 +350,18 @@ export function PDFViewer({
           </div>
         </div>
 
-        <div className="h-[calc(100%-49px)] overflow-auto p-2">
+        <div ref={pagesListRef} className="h-[calc(100%-49px)] overflow-auto p-2">
           {pageNumbers.map((pageNum) => {
             const isActive = pageNum === currentPage;
             return (
               <button
                 key={pageNum}
                 type="button"
-                onClick={() => onPageChange(pageNum)}
+                data-page={pageNum}
+                onClick={() => {
+                  onPageChange(pageNum);
+                  scrollToPage(pageNum);
+                }}
                 aria-current={isActive ? "page" : undefined}
                 className={[
                   "w-full text-left rounded-lg px-3 py-2 mb-1 border transition-colors",
@@ -303,19 +385,50 @@ export function PDFViewer({
       </aside>
 
       {/* Main PDF canvas area (fills remaining width) */}
-      <div className="flex-1 min-h-0 w-full overflow-auto">
-        <div className="min-w-full flex items-start justify-center p-6 pb-28">
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <div
-              ref={containerRef}
-              className="relative shadow-lg bg-card"
-              style={{ width: pageSize.width, height: pageSize.height }}
-              onClick={handleCanvasClick}
+      <div
+        ref={scrollRef}
+        className="flex-1 min-h-0 w-full overflow-auto outline-none"
+        tabIndex={0}
+        onScroll={handleScroll}
+        onKeyDown={handleKeyDown}
+      >
+        <div className="min-w-full flex flex-col items-center gap-10 p-6 pb-28">
+          {pageLayouts.length === 0 ? (
+            <div className="w-full flex items-center justify-center py-16 text-muted-foreground gap-3">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm">Preparing pages…</span>
+            </div>
+          ) : (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full">
+              <div className="w-full flex flex-col items-center gap-10">
+                {pageLayouts.map((layout) => {
+                  const pageNum = layout.page;
+                  const entry = overlaysByPage.get(pageNum) ?? { texts: [], sigs: [] };
+                  const isActive = pageNum === currentPage;
+                  return (
+                    <div
+                      key={pageNum}
+                      ref={(el) => {
+                        if (el) pageContainerRefs.current.set(pageNum, el);
+                        else pageContainerRefs.current.delete(pageNum);
+                      }}
+                      className={[
+                        "relative shadow-lg bg-card",
+                        isActive ? "ring-2 ring-primary/30" : "",
+                      ].join(" ")}
+                      style={{ width: layout.width, height: layout.height }}
+                      onClick={(e) => handlePageClick(pageNum, e)}
             >
-              <canvas ref={canvasRef} className="pdf-canvas bg-card" />
+                      <canvas
+                        ref={(el) => {
+                          if (el) pageCanvasRefs.current.set(pageNum, el);
+                          else pageCanvasRefs.current.delete(pageNum);
+                        }}
+                        className="pdf-canvas bg-card"
+                      />
 
               {/* Text overlays */}
-              {currentPageTextOverlays.map((text) => (
+                      {entry.texts.map((text) => (
                 <div key={text.id} className="absolute" style={{ left: text.x, top: text.y }}>
                   {editingTextId === text.id ? (
                     <input
@@ -344,7 +457,7 @@ export function PDFViewer({
               ))}
 
               {/* Signature overlays */}
-              {currentPageSignatures.map((sig) => (
+                      {entry.sigs.map((sig) => (
                 <img
                   key={sig.id}
                   src={sig.imageData}
@@ -367,8 +480,12 @@ export function PDFViewer({
                   </div>
                 </div>
               )}
+                    </div>
+                  );
+                })}
             </div>
           </motion.div>
+          )}
         </div>
       </div>
     </div>
