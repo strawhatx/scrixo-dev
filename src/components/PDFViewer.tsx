@@ -1,10 +1,12 @@
+"use client";
+
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import * as pdfjs from "pdfjs-dist";
+import * as pdfjs from "pdfjs-dist/build/pdf.min.mjs";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 
 // Set up PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
 
 interface TextOverlay {
   id: string;
@@ -31,6 +33,7 @@ interface PDFViewerProps {
   file: File;
   zoom: number;
   currentPage: number;
+  rotation: number;
   onPageCountChange: (count: number) => void;
   activeTool: ToolType;
   onSignRequest: () => void;
@@ -46,6 +49,7 @@ export function PDFViewer({
   file,
   zoom,
   currentPage,
+  rotation,
   onPageCountChange,
   activeTool,
   onSignRequest,
@@ -58,6 +62,7 @@ export function PDFViewer({
 }: PDFViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const renderTaskRef = useRef<any>(null);
   const [loading, setLoading] = useState(true);
   const [pdfDoc, setPdfDoc] = useState<pdfjs.PDFDocumentProxy | null>(null);
   const [pageSize, setPageSize] = useState({ width: 0, height: 0 });
@@ -80,29 +85,80 @@ export function PDFViewer({
   useEffect(() => {
     if (!pdfDoc || !canvasRef.current) return;
 
+    let cancelled = false;
+
     const renderPage = async () => {
+      // Cancel any in-flight render using this canvas before starting a new one.
+      try {
+        renderTaskRef.current?.cancel?.();
+      } catch {
+        // ignore
+      }
+
       const page = await pdfDoc.getPage(currentPage);
+      if (cancelled) return;
+
       const scale = zoom / 100;
-      const viewport = page.getViewport({ scale });
-      
+      // NOTE: We intentionally ignore the PDF's embedded page rotation (`page.rotate`).
+      // Some PDFs have incorrect rotation metadata; other viewers often appear to "fix"
+      // it, but PDF.js will faithfully apply it. We keep a user-controlled rotation
+      // instead, so the default matches what most users expect.
+      const viewport = page.getViewport({ scale, rotation });
+
       const canvas = canvasRef.current!;
       const context = canvas.getContext("2d")!;
-      
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+
+      const outputScale =
+        typeof window !== "undefined" && window.devicePixelRatio
+          ? window.devicePixelRatio
+          : 1;
+
+      // Keep a crisp canvas on HiDPI displays while preserving CSS pixel size.
+      canvas.width = Math.floor(viewport.width * outputScale);
+      canvas.height = Math.floor(viewport.height * outputScale);
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
+
+      // Reset any prior transforms to avoid accumulating transforms.
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.clearRect(0, 0, canvas.width, canvas.height);
+
       setPageSize({ width: viewport.width, height: viewport.height });
 
       const renderContext = {
         canvasContext: context,
         viewport,
+        // PDF.js recommended HiDPI rendering: keep viewport in CSS pixels and pass a transform.
+        transform:
+          outputScale !== 1 ? ([outputScale, 0, 0, outputScale, 0, 0] as const) : undefined,
       };
-      
+
       // @ts-ignore - pdfjs types mismatch
-      await page.render(renderContext).promise;
+      const task = page.render(renderContext);
+      renderTaskRef.current = task;
+
+      try {
+        await task.promise;
+      } catch (err: any) {
+        // Expected during rapid zoom/page changes.
+        if (err?.name !== "RenderingCancelledException") throw err;
+      } finally {
+        if (renderTaskRef.current === task) {
+          renderTaskRef.current = null;
+        }
+      }
     };
 
     renderPage();
-  }, [pdfDoc, currentPage, zoom]);
+    return () => {
+      cancelled = true;
+      try {
+        renderTaskRef.current?.cancel?.();
+      } catch {
+        // ignore
+      }
+    };
+  }, [pdfDoc, currentPage, zoom, rotation]);
 
   // Handle canvas click for placing elements
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
@@ -173,7 +229,7 @@ export function PDFViewer({
         animate={{ opacity: 1, y: 0 }}
         ref={containerRef}
         className="relative shadow-lg"
-        style={{ width: pageSize.width, height: pageSize.height }}
+        style={{ width: pageSize.width, height: pageSize.height } as React.CSSProperties}
         onClick={handleCanvasClick}
       >
         <canvas ref={canvasRef} className="pdf-canvas bg-card" />

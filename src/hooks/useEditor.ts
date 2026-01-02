@@ -3,21 +3,19 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { toast } from "sonner";
-import { createClient } from "@/lib/supabase";
-import { useFile } from "@/lib/FileContext";
+import { supabase} from "@/lib/supabase";
+import { useFileStore } from "@/store/useFileStore";
 import { processPDF, TextOverlay, SignatureOverlay } from "@/lib/pdf-utils";
 import { ToolType } from "@/components/EditorToolbar";
 
-const STORAGE_KEY = "pdfotter_signature_used";
+const STORAGE_KEY = "scrixo_signature_used";
 
 export function useEditor() {
   const router = useRouter();
   const params = useParams();
-  const { file: contextFile, setFile: setContextFile } = useFile();
-  const supabase = createClient();
+  const { file, setFile } = useFileStore();
 
   // Core State
-  const [file, setFile] = useState<File | null>(contextFile);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -27,6 +25,7 @@ export function useEditor() {
   const [zoom, setZoom] = useState(100);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [rotation, setRotation] = useState(0);
   
   // Overlays
   const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([]);
@@ -76,8 +75,7 @@ export function useEditor() {
 
           const downloadedFile = new File([data], doc.name, { type: 'application/pdf' });
           setFile(downloadedFile);
-          setContextFile(downloadedFile);
-        } else if (!file && !contextFile) {
+        } else if (!file) {
           toast.error("No PDF loaded. Please upload a file first.");
           router.push("/");
         }
@@ -90,7 +88,7 @@ export function useEditor() {
     };
 
     init();
-  }, [params, supabase, router, setContextFile]);
+  }, [params, supabase, router, setFile]);
 
   // History Actions
   const saveToHistory = useCallback(() => {
@@ -148,6 +146,7 @@ export function useEditor() {
           .single();
 
         if (docError) throw docError;
+        
         router.replace(`/edit/${docData.id}`);
       } else {
         const { data: doc } = await supabase
@@ -224,6 +223,7 @@ export function useEditor() {
     zoom,
     currentPage,
     totalPages,
+    rotation,
     textOverlays,
     signatureOverlays,
     pendingSignature,
@@ -238,6 +238,7 @@ export function useEditor() {
     setZoom,
     setCurrentPage,
     setTotalPages,
+    setRotation,
     setTextOverlays,
     setSignatureOverlays,
     setPendingSignature,

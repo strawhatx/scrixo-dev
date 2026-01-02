@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { createClient } from "@/lib/supabase";
-import { useFile } from "@/lib/FileContext";
+import { supabase } from "@/lib/supabase";
+import { useFileStore } from "@/store/useFileStore";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -26,10 +26,9 @@ export function useDashboard() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  
+
   const router = useRouter();
-  const { setFile } = useFile();
-  const supabase = createClient();
+  const setFile = useFileStore((state) => state.setFile);
 
   const fetchDocuments = useCallback(async (userId: string) => {
     const { data, error } = await supabase
@@ -42,6 +41,7 @@ export function useDashboard() {
       console.error("Error fetching documents:", error);
       return;
     }
+
     if (data) setDocuments(data);
   }, [supabase]);
 
@@ -49,10 +49,10 @@ export function useDashboard() {
     const initializeDashboard = async () => {
       try {
         const { data: { user: supabaseUser } } = await supabase.auth.getUser();
-        
+
         if (supabaseUser) {
           setUser({
-            isFree: false, 
+            isFree: false,
             name: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split("@")[0] || "User",
             email: supabaseUser.email || "",
             id: supabaseUser.id,
@@ -77,16 +77,16 @@ export function useDashboard() {
 
   const handleFileSelect = useCallback(async (selectedFile: File) => {
     setFile(selectedFile);
-    
+
     if (!user || user.isFree) {
       toast.info("Free account: File kept in memory.");
-      router.push("/edit/new"); 
+      router.push("/edit/new");
       return;
     }
 
     setIsUploading(true);
     const loadingToast = toast.loading("Uploading and saving document...");
-    
+
     try {
       // 1. Upload file to Supabase Storage
       const fileName = `${user.id}/${Date.now()}_${selectedFile.name}`;
@@ -100,8 +100,8 @@ export function useDashboard() {
       const { data: docData, error: docError } = await supabase
         .from("documents")
         .insert([
-          { 
-            name: selectedFile.name, 
+          {
+            name: selectedFile.name,
             file_path: fileName,
             user_id: user.id
           }
@@ -114,11 +114,13 @@ export function useDashboard() {
       toast.dismiss(loadingToast);
       toast.success("Saved to your documents!");
       router.push(`/edit/${docData.id}`);
-    } catch (error: any) {
+    }
+    catch (error: any) {
       toast.dismiss(loadingToast);
       toast.error(`Error saving: ${error.message}`);
       router.push("/edit/new");
-    } finally {
+    }
+    finally {
       setIsUploading(false);
     }
   }, [user, router, setFile, supabase]);

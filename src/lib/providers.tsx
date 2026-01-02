@@ -5,20 +5,17 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { useState } from "react";
-import { FileProvider } from "@/lib/FileContext";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
 
   return (
     <QueryClientProvider client={queryClient}>
-      <FileProvider>
-        <TooltipProvider>
-          {children}
-          <Toaster />
-          <Sonner />
-        </TooltipProvider>
-      </FileProvider>
+      <TooltipProvider>
+        {children}
+        <Toaster />
+        <Sonner />
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }

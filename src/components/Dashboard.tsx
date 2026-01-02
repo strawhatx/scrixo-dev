@@ -1,18 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useState } from "react";
-import {
-    FileText,
-    Monitor,
-    Layout,
-    Search,
-    Settings,
-    Plus,
-    HelpCircle,
-    Github,
-    Twitter,
-    Info,
-} from "lucide-react";
+import { FileText,  Search,  Twitter } from "lucide-react";
 import { PDFUpload } from "@/components/PDFUpload";
 import { Button } from "@/components/ui/button";
 import { useDashboard } from "@/hooks/useDashboard";
@@ -43,11 +32,6 @@ export default function Dashboard() {
                 {/* Top Right Controls */}
                 <div className="absolute top-4 right-6 z-20 flex items-center gap-2">
                     <Button variant="ghost" className="text-muted-foreground hover:text-foreground" asChild>
-                        <Link href="/about" title="About">
-                         ABOUT
-                        </Link>
-                    </Button>
-                    <Button variant="ghost" className="text-muted-foreground hover:text-foreground" asChild>
                         <Link href="https://github.com/nathanieljames/pdf-express" target="_blank" rel="noopener noreferrer" title="Report Bug">
                             REPORT BUG
                         </Link>
@@ -69,33 +53,18 @@ export default function Dashboard() {
 
                 {/* Logo Section */}
                 <div className="z-10 w-full max-w-4xl flex flex-col items-center mt-12">
-                    <div className="flex items-center gap-6 mb-16 animate-float">
+                    <div className="flex items-center gap-6 mb-4 animate-float">
                         <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center shadow-glow">
                             <FileText className="w-12 h-12 text-primary-foreground" />
                         </div>
                         <h1 className="text-[7rem] font-bold tracking-[-0.04em] leading-none text-foreground">
-                            PDFOtter
+                            scrixo
                         </h1>
                     </div>
 
-                    {/* Action Grid */}
-                    <div className="grid grid-cols-3 gap-3 mb-6 w-full max-w-2xl">
-                        <LandingButton
-                            icon={Plus}
-                            label="New PDF"
-                            onClick={() => { }}
-                        />
-                        <LandingButton
-                            icon={Monitor}
-                            label="Open From Computer"
-                            onClick={() => fileInputRef.current?.click()}
-                        />
-                        <LandingButton
-                            icon={Layout}
-                            label="Templates"
-                            onClick={() => { }}
-                        />
-                    </div>
+                    <p className="text-muted-foreground/80 text-lg font-medium max-w-2xl text-center mb-4">
+                       Make changes to your PDF files directly in your browser for free no signup required
+                    </p>
 
                     {/* Hidden Input */}
                     <input
@@ -104,6 +73,7 @@ export default function Dashboard() {
                         className="hidden"
                         accept=".pdf"
                         onChange={(e) => {
+                            console.log("file changed");    
                             const file = e.target.files?.[0];
                             if (file) handleFileSelect(file);
                         }}
@@ -124,7 +94,7 @@ export default function Dashboard() {
                             "absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300",
                             isDragging ? "opacity-0" : "opacity-100"
                         )}>
-                            <span className="text-muted-foreground/30 text-lg font-medium tracking-wide">Drop any files here</span>
+                            <span className="text-muted-foreground/30 text-lg font-medium tracking-wide">Drop pdf files here</span>
                         </div>
                     </div>
                 </div>

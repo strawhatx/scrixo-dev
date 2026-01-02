@@ -30,7 +30,13 @@ export default function Editor() {
       <main className="flex-1 flex flex-col min-h-0">
         <EditorToolbar
           activeTool={editor.activeTool}
-          onToolChange={editor.setActiveTool}
+          onToolChange={(tool) => {
+            if (tool === "rotate") {
+              editor.setRotation((r) => (r + 90) % 360);
+              return;
+            }
+            editor.setActiveTool(tool);
+          }}
           onDownload={editor.handleDownload}
           onSave={editor.handleSave}
           isSaving={editor.isSaving}
@@ -54,6 +60,7 @@ export default function Editor() {
             file={editor.file}
             zoom={editor.zoom}
             currentPage={editor.currentPage}
+            rotation={editor.rotation}
             onPageCountChange={editor.setTotalPages}
             activeTool={editor.activeTool}
             onSignRequest={editor.handleSignRequest}
@@ -111,7 +118,7 @@ function EditorHeader({ filename }: { filename: string }) {
         <div className="w-8 h-8 bg-gradient-hero rounded-lg flex items-center justify-center">
           <FileText className="w-4 h-4 text-primary-foreground" />
         </div>
-        <span className="font-display text-lg font-bold text-foreground">PDFOtter</span>
+        <span className="font-display text-lg font-bold text-foreground">scrixo</span>
       </div>
       <div className="h-4 w-[1px] bg-border mx-2 hidden sm:block" />
       <span className="text-sm text-muted-foreground truncate max-w-[300px] hidden sm:block font-medium">
