@@ -1,38 +1,25 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as pdfjs from "pdfjs-dist/build/pdf.min.mjs";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 
-// Set up PDF.js worker
+import { ToolType } from "@/components/EditorToolbar";
+import type { SignatureOverlay, TextOverlay } from "@/lib/pdf-utils";
+
+// Set up PDF.js worker (served from `/public/pdfjs/` via `scripts/copy-pdf-worker.mjs`)
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
 
-interface TextOverlay {
-  id: string;
-  text: string;
-  x: number;
-  y: number;
-  fontSize: number;
-  page: number;
-}
-
-interface SignatureOverlay {
-  id: string;
-  imageData: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  page: number;
-}
-
-import { ToolType } from "@/components/EditorToolbar";
+const DEFAULT_TEXT = "Click to edit";
+const DEFAULT_FONT_SIZE_PX = 16;
+const DEFAULT_SIGNATURE_SIZE_PX = { width: 150, height: 50 };
 
 interface PDFViewerProps {
   file: File;
   zoom: number;
   currentPage: number;
+  onPageChange: (page: number) => void;
   rotation: number;
   onPageCountChange: (count: number) => void;
   activeTool: ToolType;
@@ -49,6 +36,7 @@ export function PDFViewer({
   file,
   zoom,
   currentPage,
+  onPageChange,
   rotation,
   onPageCountChange,
   activeTool,
@@ -62,23 +50,56 @@ export function PDFViewer({
 }: PDFViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const renderTaskRef = useRef<any>(null);
+  const renderTaskRef = useRef<ReturnType<pdfjs.PDFPageProxy["render"]> | null>(null);
   const [loading, setLoading] = useState(true);
   const [pdfDoc, setPdfDoc] = useState<pdfjs.PDFDocumentProxy | null>(null);
   const [pageSize, setPageSize] = useState({ width: 0, height: 0 });
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const pageNumbers = useMemo(
+    () => Array.from({ length: pdfDoc?.numPages ?? 0 }, (_, i) => i + 1),
+    [pdfDoc?.numPages]
+  );
 
   // Load PDF
   useEffect(() => {
+    let cancelled = false;
+    let loadingTask: pdfjs.PDFDocumentLoadingTask | null = null;
+
     const loadPDF = async () => {
       setLoading(true);
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-      setPdfDoc(pdf);
-      onPageCountChange(pdf.numPages);
-      setLoading(false);
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        if (cancelled) return;
+
+        loadingTask = pdfjs.getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
+        if (cancelled) return;
+
+        setPdfDoc(pdf);
+        onPageCountChange(pdf.numPages);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     };
-    loadPDF();
+
+    loadPDF().catch((err) => {
+      // Avoid crashing the whole editor on a single bad file.
+      console.error("Failed to load PDF:", err);
+      if (!cancelled) {
+        setPdfDoc(null);
+        onPageCountChange(0);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      try {
+        loadingTask?.destroy();
+      } catch {
+        // ignore
+      }
+    };
   }, [file, onPageCountChange]);
 
   // Render page
@@ -133,8 +154,7 @@ export function PDFViewer({
           outputScale !== 1 ? ([outputScale, 0, 0, outputScale, 0, 0] as const) : undefined,
       };
 
-      // @ts-ignore - pdfjs types mismatch
-      const task = page.render(renderContext);
+      const task = page.render(renderContext as any);
       renderTaskRef.current = task;
 
       try {
@@ -163,7 +183,7 @@ export function PDFViewer({
   // Handle canvas click for placing elements
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
     if (!containerRef.current) return;
-    
+
     const rect = containerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -171,23 +191,24 @@ export function PDFViewer({
     if (activeTool === "text") {
       const newText: TextOverlay = {
         id: `text-${Date.now()}`,
-        text: "Click to edit",
+        text: DEFAULT_TEXT,
         x,
         y,
-        fontSize: 16 * (zoom / 100),
+        fontSize: DEFAULT_FONT_SIZE_PX * (zoom / 100),
         page: currentPage,
       };
       onTextOverlaysChange([...textOverlays, newText]);
       setEditingTextId(newText.id);
     } else if (activeTool === "sign") {
       if (pendingSignature) {
+        const { width, height } = DEFAULT_SIGNATURE_SIZE_PX;
         const newSig: SignatureOverlay = {
           id: `sig-${Date.now()}`,
           imageData: pendingSignature,
-          x: x - 75,
-          y: y - 25,
-          width: 150,
-          height: 50,
+          x: x - width / 2,
+          y: y - height / 2,
+          width,
+          height,
           page: currentPage,
         };
         onSignatureOverlaysChange([...signatureOverlays, newSig]);
@@ -196,20 +217,36 @@ export function PDFViewer({
         onSignRequest();
       }
     }
-  }, [activeTool, currentPage, zoom, textOverlays, onTextOverlaysChange, signatureOverlays, onSignatureOverlaysChange, pendingSignature, onPendingSignaturePlaced, onSignRequest]);
+  }, [
+    activeTool,
+    currentPage,
+    onPendingSignaturePlaced,
+    onSignRequest,
+    onSignatureOverlaysChange,
+    onTextOverlaysChange,
+    pendingSignature,
+    signatureOverlays,
+    textOverlays,
+    zoom,
+  ]);
 
-  const handleTextChange = (id: string, newText: string) => {
-    onTextOverlaysChange(
-      textOverlays.map((t) => (t.id === id ? { ...t, text: newText } : t))
-    );
-  };
+  const handleTextChange = useCallback(
+    (id: string, newText: string) => {
+      onTextOverlaysChange(textOverlays.map((t) => (t.id === id ? { ...t, text: newText } : t)));
+    },
+    [onTextOverlaysChange, textOverlays]
+  );
 
-  const handleTextBlur = () => {
-    setEditingTextId(null);
-  };
+  const handleTextBlur = useCallback(() => setEditingTextId(null), []);
 
-  const currentPageTextOverlays = textOverlays.filter((t) => t.page === currentPage);
-  const currentPageSignatures = signatureOverlays.filter((s) => s.page === currentPage);
+  const currentPageTextOverlays = useMemo(
+    () => textOverlays.filter((t) => t.page === currentPage),
+    [currentPage, textOverlays]
+  );
+  const currentPageSignatures = useMemo(
+    () => signatureOverlays.filter((s) => s.page === currentPage),
+    [currentPage, signatureOverlays]
+  );
 
   if (loading) {
     return (
@@ -223,74 +260,117 @@ export function PDFViewer({
   }
 
   return (
-    <div className="flex-1 overflow-auto bg-muted p-8 flex items-start justify-center">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        ref={containerRef}
-        className="relative shadow-lg"
-        style={{ width: pageSize.width, height: pageSize.height } as React.CSSProperties}
-        onClick={handleCanvasClick}
-      >
-        <canvas ref={canvasRef} className="pdf-canvas bg-card" />
-        
-        {/* Text overlays */}
-        {currentPageTextOverlays.map((text) => (
-          <div
-            key={text.id}
-            className="absolute"
-            style={{ left: text.x, top: text.y }}
-          >
-            {editingTextId === text.id ? (
-              <input
-                type="text"
-                value={text.text}
-                onChange={(e) => handleTextChange(text.id, e.target.value)}
-                onBlur={handleTextBlur}
-                autoFocus
-                className="bg-transparent border-b-2 border-primary outline-none text-foreground"
-                style={{ fontSize: text.fontSize }}
-              />
-            ) : (
-              <span
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditingTextId(text.id);
-                }}
-                className="cursor-text hover:bg-primary/10 px-1 rounded"
-                style={{ fontSize: text.fontSize }}
+    <div className="flex-1 min-h-0 w-full flex overflow-hidden bg-muted">
+      {/* Pages sidebar */}
+      <aside className="w-56 shrink-0 border-r border-border bg-card/50 backdrop-blur-sm">
+        <div className="px-3 py-2 border-b border-border">
+          <div className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+            Pages
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {pdfDoc?.numPages ?? 0} total
+          </div>
+        </div>
+
+        <div className="h-[calc(100%-49px)] overflow-auto p-2">
+          {pageNumbers.map((pageNum) => {
+            const isActive = pageNum === currentPage;
+            return (
+              <button
+                key={pageNum}
+                type="button"
+                onClick={() => onPageChange(pageNum)}
+                aria-current={isActive ? "page" : undefined}
+                className={[
+                  "w-full text-left rounded-lg px-3 py-2 mb-1 border transition-colors",
+                  isActive
+                    ? "bg-primary/10 border-primary/30 text-primary"
+                    : "bg-background/40 border-border text-foreground hover:bg-muted/70",
+                ].join(" ")}
               >
-                {text.text}
-              </span>
-            )}
-          </div>
-        ))}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold">Page {pageNum}</span>
+                  {isActive && (
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary/80">
+                      Active
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </aside>
 
-        {/* Signature overlays */}
-        {currentPageSignatures.map((sig) => (
-          <img
-            key={sig.id}
-            src={sig.imageData}
-            alt="Signature"
-            className="absolute pointer-events-none"
-            style={{
-              left: sig.x,
-              top: sig.y,
-              width: sig.width,
-              height: sig.height,
-            }}
-          />
-        ))}
+      {/* Main PDF canvas area (fills remaining width) */}
+      <div className="flex-1 min-h-0 w-full overflow-auto">
+        <div className="min-w-full flex items-start justify-center p-6 pb-28">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <div
+              ref={containerRef}
+              className="relative shadow-lg bg-card"
+              style={{ width: pageSize.width, height: pageSize.height }}
+              onClick={handleCanvasClick}
+            >
+              <canvas ref={canvasRef} className="pdf-canvas bg-card" />
 
-        {/* Cursor hint for sign tool */}
-        {activeTool === "sign" && pendingSignature && (
-          <div className="absolute inset-0 cursor-crosshair">
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium shadow-lg">
-              Click to place your signature
+              {/* Text overlays */}
+              {currentPageTextOverlays.map((text) => (
+                <div key={text.id} className="absolute" style={{ left: text.x, top: text.y }}>
+                  {editingTextId === text.id ? (
+                    <input
+                      type="text"
+                      value={text.text}
+                      onChange={(e) => handleTextChange(text.id, e.target.value)}
+                      onBlur={handleTextBlur}
+                      autoFocus
+                      aria-label="Edit text overlay"
+                      className="bg-transparent border-b-2 border-primary outline-none text-foreground"
+                      style={{ fontSize: text.fontSize }}
+                    />
+                  ) : (
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingTextId(text.id);
+                      }}
+                      className="cursor-text hover:bg-primary/10 px-1 rounded"
+                      style={{ fontSize: text.fontSize }}
+                    >
+                      {text.text}
+                    </span>
+                  )}
+                </div>
+              ))}
+
+              {/* Signature overlays */}
+              {currentPageSignatures.map((sig) => (
+                <img
+                  key={sig.id}
+                  src={sig.imageData}
+                  alt="Signature"
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: sig.x,
+                    top: sig.y,
+                    width: sig.width,
+                    height: sig.height,
+                  }}
+                />
+              ))}
+
+              {/* Cursor hint for sign tool */}
+              {activeTool === "sign" && pendingSignature && (
+                <div className="absolute inset-0 cursor-crosshair">
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium shadow-lg">
+                    Click to place your signature
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
-      </motion.div>
+          </motion.div>
+        </div>
+      </div>
     </div>
   );
 }

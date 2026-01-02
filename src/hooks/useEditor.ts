@@ -5,10 +5,12 @@ import { useRouter, useParams } from "next/navigation";
 import { toast } from "sonner";
 import { supabase} from "@/lib/supabase";
 import { useFileStore } from "@/store/useFileStore";
+import { PDFDocument } from "pdf-lib";
 import { processPDF, TextOverlay, SignatureOverlay } from "@/lib/pdf-utils";
 import { ToolType } from "@/components/EditorToolbar";
 
 const STORAGE_KEY = "scrixo_signature_used";
+const SIGNED_MARKER = "scrixo:signed";
 
 export function useEditor() {
   const router = useRouter();
@@ -42,6 +44,13 @@ export function useEditor() {
   
   // Freemium tracking
   const [signatureUsed, setSignatureUsed] = useState(false);
+
+  // Subscription (lightweight for now; can be wired to real billing later)
+  const isPro = Boolean(
+    user?.user_metadata?.is_pro ||
+      user?.user_metadata?.plan === "pro" ||
+      user?.app_metadata?.plan === "pro"
+  );
 
   // Initialize
   useEffect(() => {
@@ -89,6 +98,47 @@ export function useEditor() {
 
     init();
   }, [params, supabase, router, setFile]);
+
+  // Detect whether the loaded PDF was previously signed in scrixo (metadata marker).
+  useEffect(() => {
+    let cancelled = false;
+    const detect = async () => {
+      if (!file) return;
+      try {
+        const bytes = await file.arrayBuffer();
+        const doc: any = await PDFDocument.load(bytes);
+
+        const keywords: unknown =
+          typeof doc.getKeywords === "function" ? doc.getKeywords() : undefined;
+        const subject: unknown =
+          typeof doc.getSubject === "function" ? doc.getSubject() : undefined;
+
+        const keywordMatch =
+          Array.isArray(keywords) && keywords.some((k) => String(k).includes(SIGNED_MARKER));
+        const subjectMatch = typeof subject === "string" && subject.includes(SIGNED_MARKER);
+
+        if (!cancelled && (keywordMatch || subjectMatch)) {
+          setSignatureUsed(true);
+          localStorage.setItem(STORAGE_KEY, "true");
+        }
+      } catch {
+        // Ignore detection errors — doesn't block editor.
+      }
+    };
+
+    detect();
+    return () => {
+      cancelled = true;
+    };
+  }, [file]);
+
+  // Mark the free signature as "used" when a signature is actually placed.
+  useEffect(() => {
+    if (signatureUsed) return;
+    if (signatureOverlays.length === 0) return;
+    setSignatureUsed(true);
+    localStorage.setItem(STORAGE_KEY, "true");
+  }, [signatureOverlays.length, signatureUsed]);
 
   // History Actions
   const saveToHistory = useCallback(() => {
@@ -207,8 +257,6 @@ export function useEditor() {
 
   const handleSignatureSave = useCallback((signatureData: string) => {
     setPendingSignature(signatureData);
-    setSignatureUsed(true);
-    localStorage.setItem(STORAGE_KEY, "true");
     setShowSignaturePad(false);
     toast.success("Signature created! Click on the PDF to place it.");
   }, []);
@@ -217,6 +265,7 @@ export function useEditor() {
     // State
     file,
     user,
+    isPro,
     loading,
     isSaving,
     activeTool,

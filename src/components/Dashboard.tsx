@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useRef, useEffect, useState } from "react";
-import { FileText,  Search,  Twitter } from "lucide-react";
+import { FileText,  ScrollText,  Search,  Twitter } from "lucide-react";
 import { PDFUpload } from "@/components/PDFUpload";
 import { Button } from "@/components/ui/button";
 import { useDashboard } from "@/hooks/useDashboard";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Dashboard() {
     const { user, loading, handleFileSelect, signIn, signOut } = useDashboard();
@@ -55,7 +56,7 @@ export default function Dashboard() {
                 <div className="z-10 w-full max-w-4xl flex flex-col items-center mt-12">
                     <div className="flex items-center gap-6 mb-4 animate-float">
                         <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center shadow-glow">
-                            <FileText className="w-12 h-12 text-primary-foreground" />
+                            <ScrollText className="w-12 h-12 text-primary-foreground" />
                         </div>
                         <h1 className="text-[7rem] font-bold tracking-[-0.04em] leading-none text-foreground">
                             scrixo

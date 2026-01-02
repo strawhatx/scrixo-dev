@@ -28,6 +28,27 @@ export async function processPDF(
   const pdfDoc = await PDFDocument.load(arrayBuffer);
   const pages = pdfDoc.getPages();
 
+  // Marker used to detect previously-signed PDFs created by scrixo.
+  // We write it only when a signature was actually placed.
+  if (signatureOverlays.length > 0) {
+    try {
+      const marker = "scrixo:signed";
+      const anyDoc = pdfDoc as any;
+      const existingKeywords: string[] | undefined =
+        typeof anyDoc.getKeywords === "function" ? anyDoc.getKeywords() : undefined;
+
+      if (typeof anyDoc.setKeywords === "function") {
+        const next = Array.isArray(existingKeywords) ? existingKeywords.slice() : [];
+        if (!next.includes(marker)) next.push(marker);
+        anyDoc.setKeywords(next);
+      } else if (typeof anyDoc.setSubject === "function") {
+        anyDoc.setSubject(marker);
+      }
+    } catch {
+      // If metadata can't be set for some reason, we still produce a valid PDF.
+    }
+  }
+
   // Add text overlays
   for (const text of textOverlays) {
     const page = pages[text.page - 1];
