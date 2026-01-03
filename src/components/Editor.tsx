@@ -69,6 +69,7 @@ export default function Editor() {
             rotation={editor.rotation}
             onPageCountChange={editor.setTotalPages}
             activeTool={editor.activeTool}
+            onRequestToolChange={editor.setActiveTool}
             onSignRequest={editor.handleSignRequest}
             textOverlays={editor.textOverlays}
             onTextOverlaysChange={(overlays) => {
