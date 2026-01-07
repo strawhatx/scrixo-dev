@@ -55,6 +55,7 @@ export default function Editor() {
                 editor.setRotation((r) => (r + 90) % 360);
                 return;
               }
+              if (tool === "text") editor.setTextToolMode("edit");
               editor.setActiveTool(tool);
             }}
           />
@@ -69,7 +70,14 @@ export default function Editor() {
             rotation={editor.rotation}
             onPageCountChange={editor.setTotalPages}
             activeTool={editor.activeTool}
-            onRequestToolChange={editor.setActiveTool}
+            onRequestToolChange={(tool) => {
+              // Requests coming from inside the viewer (eg clicking detected PDF text)
+              // should put us in "edit existing text" mode by default.
+              if (tool === "text") editor.setTextToolMode("edit");
+              editor.setActiveTool(tool);
+            }}
+            textToolMode={editor.textToolMode}
+            onTextToolModeChange={editor.setTextToolMode}
             onSignRequest={editor.handleSignRequest}
             textOverlays={editor.textOverlays}
             onTextOverlaysChange={(overlays) => {

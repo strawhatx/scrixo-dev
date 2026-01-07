@@ -24,6 +24,7 @@ export function useEditor() {
   
   // Tool & View State
   const [activeTool, setActiveTool] = useState<ToolType>("select");
+  const [textToolMode, setTextToolMode] = useState<"edit" | "add">("edit");
   const [zoom, setZoom] = useState(100);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -269,6 +270,7 @@ export function useEditor() {
     loading,
     isSaving,
     activeTool,
+    textToolMode,
     zoom,
     currentPage,
     totalPages,
@@ -284,6 +286,7 @@ export function useEditor() {
     
     // Setters
     setActiveTool,
+    setTextToolMode,
     setZoom,
     setCurrentPage,
     setTotalPages,
