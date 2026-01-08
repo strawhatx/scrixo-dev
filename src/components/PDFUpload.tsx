@@ -15,6 +15,11 @@ interface PDFUploadProps {
   className?: string;
   minimal?: boolean;
   onDraggingChange?: (isDragging: boolean) => void;
+  /**
+   * Optional id applied to the underlying <input type="file"> so external
+   * buttons (ex: a hero CTA) can trigger the picker via document.getElementById(...).click().
+   */
+  inputId?: string;
 }
 
 /**
@@ -118,34 +123,84 @@ function MinimalUploadView({
   handleDragLeave, 
   handleDrop, 
   handleFileChange,
-  fileInputRef
+  fileInputRef,
+  inputId,
+  triggerPicker
 }: PDFUploadProps & ReturnType<typeof useFileHandlers>) {
   return (
-    <div 
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      className={cn("w-full h-full relative overflow-hidden", className)}
+    <div
+      className={cn(
+        "w-full rounded-3xl border-2 border-dashed border-border/60 bg-muted/10 p-5 sm:p-6",
+        className
+      )}
     >
-      <input
-        type="file"
-        ref={fileInputRef}
-        accept=".pdf"
-        onChange={handleFileChange}
-        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-      />
-      
-      <div className={cn(
-        "absolute inset-0 flex items-center justify-center transition-all duration-300 pointer-events-none z-10",
-        isDragging ? "bg-[#4bb3a3]/10 scale-100" : "scale-95 opacity-0"
-      )}>
-        <div className="flex flex-col items-center gap-2">
-          <div className="p-4 bg-[#4bb3a3] rounded-full shadow-glow animate-bounce">
-            <Upload className="w-8 h-8 text-white" />
+      <div 
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onClick={triggerPicker}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            triggerPicker();
+          }
+        }}
+        className={cn(
+          "w-full h-full relative overflow-hidden rounded-2xl border transition-all duration-300",
+          "bg-background cursor-pointer select-none shadow-sm",
+          isDragging ? "border-[#ff5a3c]/60 ring-4 ring-[#ff5a3c]/10" : "border-border/60"
+        )}
+      >
+        <input
+          id={inputId}
+          type="file"
+          ref={fileInputRef}
+          accept=".pdf"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        
+        <div className="p-10 sm:p-12 flex items-center justify-center min-h-[300px]">
+          <div className="flex flex-col items-center text-center gap-4">
+            <div
+              className={cn(
+                "h-16 w-16 rounded-2xl flex items-center justify-center transition-all duration-300",
+                isDragging ? "bg-[#ff5a3c] text-white shadow-md" : "bg-[#ff5a3c]/10 text-[#ff5a3c]"
+              )}
+            >
+              <FileText className="h-8 w-8" />
+            </div>
+
+            <div className="space-y-1">
+              <div className="text-base font-semibold text-foreground">
+                Drop your file here
+              </div>
+              <div className="text-[11px] font-black tracking-widest uppercase text-muted-foreground/60">
+                or
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                triggerPicker();
+              }}
+              className={cn(
+                "h-12 px-7 rounded-xl font-black tracking-tight transition-all duration-200",
+                "bg-[#ff5a3c] text-white shadow-md hover:shadow-lg hover:-translate-y-0.5",
+                "hover:bg-[#ff4a2a]"
+              )}
+            >
+              Upload The PDF To Edit
+            </button>
+
+            <div className="text-[11px] font-semibold text-muted-foreground/60">
+              PDF only · Max {MAX_FILE_SIZE_MB}MB
+            </div>
           </div>
-          <span className="text-[#4bb3a3] font-bold text-lg uppercase tracking-widest">
-            Drop PDF Now
-          </span>
         </div>
       </div>
     </div>
@@ -160,7 +215,8 @@ function StandardUploadView({
   handleDrop, 
   handleFileChange,
   fileInputRef,
-  triggerPicker
+  triggerPicker,
+  inputId
 }: PDFUploadProps & ReturnType<typeof useFileHandlers>) {
   return (
     <motion.div
@@ -180,6 +236,7 @@ function StandardUploadView({
         )}
       >
         <input
+          id={inputId}
           type="file"
           ref={fileInputRef}
           accept=".pdf"

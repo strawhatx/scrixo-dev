@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { Download, FileText, Loader2, Save, Search } from "lucide-react";
 import { useEditor } from "@/hooks/useEditor";
 import { PDFViewer } from "@/components/PDFViewerClient";
@@ -8,6 +8,7 @@ import { EditorFloatingControls, EditorToolbar } from "@/components/EditorToolba
 import { SignaturePad } from "@/components/SignaturePad";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { Button } from "@/components/ui/button";
+import { DrawToolsPanel } from "@/components/DrawToolsPanel";
 
 /**
  * Staff-Level Editor Component
@@ -15,6 +16,7 @@ import { Button } from "@/components/ui/button";
  */
 export default function Editor() {
   const editor = useEditor();
+  const mergeInputRef = useRef<HTMLInputElement>(null);
 
   // Ensure the editor is a fixed viewport shell; the PDF viewport is the only scroller.
   useEffect(() => {
@@ -34,8 +36,28 @@ export default function Editor() {
   }
 
   return (
-    <div className="h-dvh bg-background text-foreground flex overflow-hidden font-sans select-none">
+    <div
+      className={[
+        "h-dvh bg-background text-foreground flex overflow-hidden font-sans",
+        editor.activeTool === "select" ? "select-text" : "select-none",
+      ].join(" ")}
+    >
       <main className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
+        {/* Hidden file input for Merge */}
+        <input
+          ref={mergeInputRef}
+          type="file"
+          accept=".pdf,application/pdf"
+          multiple
+          className="hidden"
+          onChange={async (e) => {
+            const files = Array.from(e.target.files ?? []);
+            if (files.length) await editor.mergeWithPDFs(files);
+            // reset so selecting the same file twice still triggers change
+            e.currentTarget.value = "";
+          }}
+        />
+
         <div className="shrink-0 w-full sticky top-0 z-20">
           <EditorHeader
             filename={editor.file.name}
@@ -48,14 +70,18 @@ export default function Editor() {
             activeTool={editor.activeTool}
             isPro={editor.isPro}
             onToolChange={(tool) => {
-              if (!editor.isPro && ["merge", "split", "rearrange", "rotate", "more"].includes(tool)) {
-                return;
-              }
               if (tool === "rotate") {
-                editor.setRotation((r) => (r + 90) % 360);
+                editor.rotatePage(editor.currentPage, 90);
                 return;
               }
-              if (tool === "text") editor.setTextToolMode("edit");
+              if (tool === "merge") {
+                mergeInputRef.current?.click();
+                return;
+              }
+              if (tool === "split") {
+                editor.splitCurrentPageToDownload();
+                return;
+              }
               editor.setActiveTool(tool);
             }}
           />
@@ -68,22 +94,12 @@ export default function Editor() {
             currentPage={editor.currentPage}
             onPageChange={editor.setCurrentPage}
             rotation={editor.rotation}
+            pageOrder={editor.pageOrder}
+            pageRotations={editor.pageRotations}
+            onPageOrderChange={editor.setPageOrder}
             onPageCountChange={editor.setTotalPages}
             activeTool={editor.activeTool}
-            onRequestToolChange={(tool) => {
-              // Requests coming from inside the viewer (eg clicking detected PDF text)
-              // should put us in "edit existing text" mode by default.
-              if (tool === "text") editor.setTextToolMode("edit");
-              editor.setActiveTool(tool);
-            }}
-            textToolMode={editor.textToolMode}
-            onTextToolModeChange={editor.setTextToolMode}
             onSignRequest={editor.handleSignRequest}
-            textOverlays={editor.textOverlays}
-            onTextOverlaysChange={(overlays) => {
-              editor.setTextOverlays(overlays);
-              editor.saveToHistory();
-            }}
             signatureOverlays={editor.signatureOverlays}
             onSignatureOverlaysChange={editor.setSignatureOverlays}
             pendingSignature={editor.pendingSignature}
@@ -91,7 +107,38 @@ export default function Editor() {
               editor.setPendingSignature(null);
               editor.saveToHistory();
             }}
+            drawStrokes={editor.drawStrokes}
+            onDrawStrokesChange={editor.setDrawStrokes}
+            onDrawStrokesCommit={editor.saveToHistory}
+            drawSettings={{
+              tool: editor.drawTool,
+              color: editor.drawColor,
+              width: editor.drawWidth,
+            }}
+            imageOverlays={editor.imageOverlays}
+            onImageOverlaysChange={editor.setImageOverlays}
+            pendingImage={editor.pendingImage}
+            onPendingImageChange={editor.setPendingImage}
+            onPendingImagePlaced={() => {
+              editor.setPendingImage(null);
+              editor.saveToHistory();
+            }}
+            fieldOverlays={editor.fieldOverlays}
+            onFieldOverlaysChange={editor.setFieldOverlays}
+            onFieldOverlaysCommit={editor.saveToHistory}
           />
+
+          {editor.activeTool === "draw" && (
+            <DrawToolsPanel
+              tool={editor.drawTool}
+              onToolChange={editor.setDrawTool}
+              color={editor.drawColor}
+              onColorChange={editor.setDrawColor}
+              width={editor.drawWidth}
+              onWidthChange={editor.setDrawWidth}
+              className="left-[calc(14rem+0.75rem)] top-6"
+            />
+          )}
 
           {/* Floating bottom controls (portaled to body for true viewport positioning) */}
               <EditorFloatingControls

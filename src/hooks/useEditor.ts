@@ -6,7 +6,13 @@ import { toast } from "sonner";
 import { supabase} from "@/lib/supabase";
 import { useFileStore } from "@/store/useFileStore";
 import { PDFDocument } from "pdf-lib";
-import { processPDF, TextOverlay, SignatureOverlay } from "@/lib/pdf-utils";
+import {
+  processPDF,
+  SignatureOverlay,
+  DrawStrokeOverlay,
+  ImageOverlay,
+  FieldOverlay,
+} from "@/lib/pdf-utils";
 import { ToolType } from "@/components/EditorToolbar";
 
 const STORAGE_KEY = "scrixo_signature_used";
@@ -23,20 +29,42 @@ export function useEditor() {
   const [isSaving, setIsSaving] = useState(false);
   
   // Tool & View State
-  const [activeTool, setActiveTool] = useState<ToolType>("select");
-  const [textToolMode, setTextToolMode] = useState<"edit" | "add">("edit");
+  const [activeTool, setActiveTool] = useState<ToolType>("sign");
   const [zoom, setZoom] = useState(100);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  // Base rotation for the whole viewport (kept for backwards compatibility; per-page rotation lives below).
   const [rotation, setRotation] = useState(0);
+
+  // Page Model
+  // - pageOrder controls render + export order (array of original page numbers).
+  // - pageRotations stores per-original-page rotations in degrees (0/90/180/270).
+  const [pageOrder, setPageOrder] = useState<number[]>([]);
+  const [pageRotations, setPageRotations] = useState<Record<number, number>>({});
   
   // Overlays
-  const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([]);
   const [signatureOverlays, setSignatureOverlays] = useState<SignatureOverlay[]>([]);
   const [pendingSignature, setPendingSignature] = useState<string | null>(null);
+  const [drawStrokes, setDrawStrokes] = useState<DrawStrokeOverlay[]>([]);
+  // Draw settings (affects new strokes + eraser behavior)
+  const [drawTool, setDrawTool] = useState<"pen" | "highlighter" | "eraser">("pen");
+  const [drawColor, setDrawColor] = useState<string>("#ef4444");
+  const [drawWidth, setDrawWidth] = useState<number>(6);
+  const [imageOverlays, setImageOverlays] = useState<ImageOverlay[]>([]);
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [fieldOverlays, setFieldOverlays] = useState<FieldOverlay[]>([]);
   
   // History State
-  const [history, setHistory] = useState<{ text: TextOverlay[]; sig: SignatureOverlay[] }[]>([]);
+  const [history, setHistory] = useState<
+    Array<{
+      sig: SignatureOverlay[];
+      draw: DrawStrokeOverlay[];
+      img: ImageOverlay[];
+      field: FieldOverlay[];
+      pageOrder: number[];
+      pageRotations: Record<number, number>;
+    }>
+  >([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   
   // Modal State
@@ -133,6 +161,18 @@ export function useEditor() {
     };
   }, [file]);
 
+  // Keep pageOrder in sync with the loaded PDF page count.
+  // If pageOrder is empty (fresh load) or mismatched, reset to natural order.
+  useEffect(() => {
+    if (!totalPages || totalPages < 1) return;
+    setPageOrder((prev) => {
+      if (prev.length === totalPages) return prev;
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    });
+    // Ensure currentPage is always valid.
+    setCurrentPage((p) => Math.min(Math.max(1, p), totalPages));
+  }, [totalPages]);
+
   // Mark the free signature as "used" when a signature is actually placed.
   useEffect(() => {
     if (signatureUsed) return;
@@ -145,17 +185,28 @@ export function useEditor() {
   const saveToHistory = useCallback(() => {
     setHistory(prev => {
       const newHistory = prev.slice(0, historyIndex + 1);
-      newHistory.push({ text: [...textOverlays], sig: [...signatureOverlays] });
+      newHistory.push({
+        sig: [...signatureOverlays],
+        draw: [...drawStrokes],
+        img: [...imageOverlays],
+        field: [...fieldOverlays],
+        pageOrder: [...pageOrder],
+        pageRotations: { ...pageRotations },
+      });
       return newHistory;
     });
     setHistoryIndex(prev => prev + 1);
-  }, [textOverlays, signatureOverlays, historyIndex]);
+  }, [drawStrokes, fieldOverlays, historyIndex, imageOverlays, pageOrder, pageRotations, signatureOverlays]);
 
   const undo = useCallback(() => {
     if (historyIndex > 0) {
       const prev = history[historyIndex - 1];
-      setTextOverlays(prev.text);
       setSignatureOverlays(prev.sig);
+      setDrawStrokes(prev.draw);
+      setImageOverlays(prev.img);
+      setFieldOverlays(prev.field);
+      setPageOrder(prev.pageOrder);
+      setPageRotations(prev.pageRotations);
       setHistoryIndex(historyIndex - 1);
     }
   }, [history, historyIndex]);
@@ -163,8 +214,12 @@ export function useEditor() {
   const redo = useCallback(() => {
     if (historyIndex < history.length - 1) {
       const next = history[historyIndex + 1];
-      setTextOverlays(next.text);
       setSignatureOverlays(next.sig);
+      setDrawStrokes(next.draw);
+      setImageOverlays(next.img);
+      setFieldOverlays(next.field);
+      setPageOrder(next.pageOrder);
+      setPageRotations(next.pageRotations);
       setHistoryIndex(historyIndex + 1);
     }
   }, [history, historyIndex]);
@@ -176,7 +231,13 @@ export function useEditor() {
     const loadingToast = toast.loading("Saving changes to cloud...");
 
     try {
-      const pdfBytes = await processPDF(file, textOverlays, signatureOverlays);
+      const pdfBytes = await processPDF(file, signatureOverlays, {
+        pageOrder,
+        pageRotations,
+        drawStrokes,
+        imageOverlays,
+        fieldOverlays,
+      });
       const blob = new Blob([pdfBytes as any], { type: "application/pdf" });
       
       const docId = params?.id as string;
@@ -228,12 +289,19 @@ export function useEditor() {
     } finally {
       setIsSaving(false);
     }
-  }, [file, user, textOverlays, signatureOverlays, params, supabase, router]);
+  }, [drawStrokes, fieldOverlays, file, imageOverlays, pageOrder, pageRotations, user, signatureOverlays, params, supabase, router]);
 
   const handleDownload = useCallback(async () => {
     if (!file) return;
     try {
-      const pdfBytes = await processPDF(file, textOverlays, signatureOverlays);
+      const pdfBytes = await processPDF(file, signatureOverlays, {
+        pageOrder,
+        pageRotations,
+        drawStrokes,
+        imageOverlays,
+        fieldOverlays,
+        watermark: isPro ? undefined : { text: "Edited with scrixo" },
+      });
       const blob = new Blob([pdfBytes as any], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -245,7 +313,101 @@ export function useEditor() {
     } catch (error) {
       toast.error("Failed to download PDF.");
     }
-  }, [file, textOverlays, signatureOverlays]);
+  }, [drawStrokes, fieldOverlays, file, imageOverlays, isPro, pageOrder, pageRotations, signatureOverlays]);
+
+  // Page Operations
+  const rotatePage = useCallback((pageNum: number, delta: number = 90) => {
+    setPageRotations((prev) => {
+      const curr = prev[pageNum] ?? 0;
+      const next = ((curr + delta) % 360 + 360) % 360;
+      return { ...prev, [pageNum]: next };
+    });
+  }, []);
+
+  const movePageInOrder = useCallback((fromIndex: number, toIndex: number) => {
+    setPageOrder((prev) => {
+      if (fromIndex === toIndex) return prev;
+      if (fromIndex < 0 || toIndex < 0) return prev;
+      if (fromIndex >= prev.length || toIndex >= prev.length) return prev;
+      const next = prev.slice();
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }, []);
+
+  const setPageOrderSafe = useCallback((next: number[]) => {
+    setPageOrder(() => next);
+  }, []);
+
+  const mergeWithPDFs = useCallback(
+    async (filesToMerge: File[]) => {
+      if (!file) return;
+      if (!filesToMerge.length) return;
+      const loadingToast = toast.loading("Merging PDFs...");
+      try {
+        const baseBytes = await file.arrayBuffer();
+        const outDoc = await PDFDocument.create();
+        const baseDoc = await PDFDocument.load(baseBytes);
+        const basePages = await outDoc.copyPages(baseDoc, baseDoc.getPageIndices());
+        basePages.forEach((p) => outDoc.addPage(p));
+
+        for (const f of filesToMerge) {
+          const bytes = await f.arrayBuffer();
+          const doc = await PDFDocument.load(bytes);
+          const pages = await outDoc.copyPages(doc, doc.getPageIndices());
+          pages.forEach((p) => outDoc.addPage(p));
+        }
+
+        const mergedBytes = await outDoc.save();
+        const mergedFile = new File([mergedBytes as any], `merged_${file.name}`, {
+          type: "application/pdf",
+        });
+        setFile(mergedFile);
+        // Reset overlays/history for now (keeps behavior predictable until we support cross-doc overlay mapping).
+        setSignatureOverlays([]);
+        setDrawStrokes([]);
+        setImageOverlays([]);
+        setPendingImage(null);
+        setFieldOverlays([]);
+        setHistory([]);
+        setHistoryIndex(-1);
+        setPageRotations({});
+        toast.dismiss(loadingToast);
+        toast.success("Merged!");
+      } catch (err: any) {
+        toast.dismiss(loadingToast);
+        toast.error(`Merge failed: ${err?.message ?? "Unknown error"}`);
+      }
+    },
+    [file, setFile]
+  );
+
+  const splitCurrentPageToDownload = useCallback(async () => {
+    if (!file) return;
+    const loadingToast = toast.loading("Preparing split PDF...");
+    try {
+      const bytes = await file.arrayBuffer();
+      const src = await PDFDocument.load(bytes);
+      const out = await PDFDocument.create();
+      const idx = Math.min(Math.max(1, currentPage), src.getPageCount()) - 1;
+      const [copied] = await out.copyPages(src, [idx]);
+      out.addPage(copied);
+      const outBytes = await out.save();
+      const blob = new Blob([outBytes as any], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `page_${currentPage}_${file.name}`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.dismiss(loadingToast);
+      toast.success("Split downloaded!");
+    } catch (err: any) {
+      toast.dismiss(loadingToast);
+      toast.error(`Split failed: ${err?.message ?? "Unknown error"}`);
+    }
+  }, [currentPage, file]);
 
   // Tool Handlers
   const handleSignRequest = useCallback(() => {
@@ -270,14 +432,24 @@ export function useEditor() {
     loading,
     isSaving,
     activeTool,
-    textToolMode,
     zoom,
     currentPage,
     totalPages,
     rotation,
-    textOverlays,
+    pageOrder,
+    pageRotations,
     signatureOverlays,
     pendingSignature,
+    drawStrokes,
+    drawTool,
+    setDrawTool,
+    drawColor,
+    setDrawColor,
+    drawWidth,
+    setDrawWidth,
+    imageOverlays,
+    pendingImage,
+    fieldOverlays,
     historyIndex,
     historyLength: history.length,
     signatureUsed,
@@ -286,14 +458,18 @@ export function useEditor() {
     
     // Setters
     setActiveTool,
-    setTextToolMode,
     setZoom,
     setCurrentPage,
     setTotalPages,
     setRotation,
-    setTextOverlays,
+    setPageOrder: setPageOrderSafe,
+    setPageRotations,
     setSignatureOverlays,
     setPendingSignature,
+    setDrawStrokes,
+    setImageOverlays,
+    setPendingImage,
+    setFieldOverlays,
     setShowSignaturePad,
     setShowUpgradeModal,
     
@@ -302,6 +478,10 @@ export function useEditor() {
     handleDownload,
     handleSignRequest,
     handleSignatureSave,
+    rotatePage,
+    movePageInOrder,
+    mergeWithPDFs,
+    splitCurrentPageToDownload,
     undo,
     redo,
     saveToHistory,

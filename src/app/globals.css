@@ -175,6 +175,26 @@
   @apply shadow-lg rounded-lg;
 }
 
+/* PDF.js-style text layer (used by the Select tool for copy/paste selection) */
+.pdf-text-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.pdf-text-layer span {
+  position: absolute;
+  white-space: pre;
+  line-height: 1;
+  color: transparent;
+}
+
+.pdf-text-layer ::selection {
+  background: rgba(59, 130, 246, 0.35);
+}
+
 /* Signature pad styles */
 .signature-pad {
   @apply border-2 border-dashed border-primary/30 rounded-lg bg-card;

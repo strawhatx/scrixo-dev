@@ -3,8 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { 
-  MousePointer2, 
-  Type, 
+  MousePointer2,
   PenLine, 
   Pencil,
   ImageIcon,
@@ -23,7 +22,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
-export type ToolType = "select" | "text" | "sign" | "draw" | "image" | "field" | "merge" | "split" | "rearrange" | "rotate" | "more";
+export type ToolType =
+  | "select"
+  | "sign"
+  | "draw"
+  | "image"
+  | "field"
+  | "merge"
+  | "split"
+  | "rearrange"
+  | "rotate"
+  | "more";
 
 interface EditorToolbarProps {
   activeTool: ToolType;
@@ -33,7 +42,6 @@ interface EditorToolbarProps {
 
 const tools = [
   { id: "select" as ToolType, icon: MousePointer2, label: "Select" },
-  { id: "text" as ToolType, icon: Type, label: "Text" },
   { id: "sign" as ToolType, icon: PenLine, label: "Sign" },
   { id: "draw" as ToolType, icon: Pencil, label: "Draw" },
   { id: "image" as ToolType, icon: ImageIcon, label: "Image" },
