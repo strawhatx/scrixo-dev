@@ -35,7 +35,10 @@ export function DrawToolsPanel({
   );
   const customColorInputRef = useRef<HTMLInputElement>(null);
   const isPresetSelected = presetColors.some((c) => c.toLowerCase() === color.toLowerCase());
+  const isCustomSelected = !isPresetSelected;
   const customSwatchColor = isPresetSelected ? "#ff5a3c" : color;
+  const customRainbowBg =
+    "conic-gradient(from 0deg, #ff004c, #ff8a00, #ffe600, #18d26b, #00c2ff, #7b61ff, #ff00c8, #ff004c)";
 
   const toolItems: Array<{ id: DrawTool; label: string; Icon: React.ComponentType<{ className?: string }> }> = [
     { id: "pen", label: "Pen", Icon: Pencil },
@@ -108,15 +111,33 @@ export function DrawToolsPanel({
               onClick={() => customColorInputRef.current?.click()}
               className={cn(
                 "h-7 w-7 rounded-full border flex items-center justify-center transition-transform",
-                !isPresetSelected ? "border-[#ff5a3c] ring-2 ring-[#ff5a3c]/30" : "border-border hover:scale-105"
+                isCustomSelected
+                  ? "border-[#ff5a3c] ring-2 ring-[#ff5a3c]/30 shadow-sm"
+                  : "border-border hover:scale-105"
               )}
               aria-label="Custom color"
               title={isPresetSelected ? "Custom color" : `Custom: ${color}`}
             >
+              {/* Rainbow ring + inner separator ring + center fill */}
               <span
-                className="h-4 w-4 rounded-full border border-border"
-                style={{ backgroundColor: customSwatchColor }}
-              />
+                className="h-6 w-6 rounded-full p-[2px]"
+                style={{ backgroundImage: customRainbowBg }}
+                aria-hidden="true"
+              >
+                <span
+                  className="block h-full w-full rounded-full p-[2px]"
+                  style={{ background: "hsl(var(--background))" }}
+                >
+                  <span
+                    className="block h-full w-full rounded-full border border-border"
+                    style={
+                      isCustomSelected
+                        ? { backgroundColor: customSwatchColor }
+                        : { backgroundImage: customRainbowBg }
+                    }
+                  />
+                </span>
+              </span>
               <input
                 ref={customColorInputRef}
                 type="color"
