@@ -1,4 +1,5 @@
 import { PDFDocument, degrees, rgb } from "pdf-lib";
+import type { FieldKind } from "@/types/fields";
 export interface SignatureOverlay {
   id: string;
   imageData: string;
@@ -7,6 +8,8 @@ export interface SignatureOverlay {
   width: number;
   height: number;
   page: number;
+  opacity?: number; // 0..1
+  rotation?: number; // degrees
 }
 
 export interface DrawStrokeOverlay {
@@ -26,17 +29,26 @@ export interface ImageOverlay {
   y: number;
   width: number;
   height: number;
+  opacity?: number; // 0..1
+  rotation?: number; // degrees
 }
 
 export interface FieldOverlay {
   id: string;
   page: number;
   name: string;
+  kind?: FieldKind;
+  groupName?: string;
   x: number;
   y: number;
   width: number;
   height: number;
   fontSize?: number;
+  value?: string;
+  values?: string[];
+  multiline?: boolean;
+  checked?: boolean;
+  options?: string[];
 }
 
 export async function processPDF(
@@ -127,6 +139,8 @@ export async function processPDF(
         y: page.getHeight() - sig.y - sig.height,
         width: sig.width,
         height: sig.height,
+        opacity: typeof sig.opacity === "number" ? Math.max(0, Math.min(1, sig.opacity)) : 1,
+        rotate: degrees(((sig.rotation ?? 0) % 360 + 360) % 360),
       });
     }
   }
@@ -146,6 +160,8 @@ export async function processPDF(
       y: page.getHeight() - img.y - img.height,
       width: img.width,
       height: img.height,
+      opacity: typeof img.opacity === "number" ? Math.max(0, Math.min(1, img.opacity)) : 1,
+      rotate: degrees(((img.rotation ?? 0) % 360 + 360) % 360),
     });
   }
 
@@ -175,30 +191,152 @@ export async function processPDF(
   if ((opts?.fieldOverlays?.length ?? 0) > 0) {
     const form = pdfDoc.getForm();
     const usedNames = new Set<string>();
+    const radioGroups = new Map<string, { group: any; optionIds: Set<string> }>();
     for (const f of opts!.fieldOverlays!) {
       const pageIdx = pageIndexByOriginal.get(f.page) ?? f.page - 1;
       const page = pages[pageIdx];
       if (!page) continue;
-      const baseName = (f.name || "field").trim() || "field";
+      const kind = f.kind ?? "text";
+
+      const baseName =
+        kind === "radio"
+          ? (f.groupName || f.name || "radio_group").trim() || "radio_group"
+          : (f.name || "field").trim() || "field";
       let name = baseName;
       let n = 1;
-      while (usedNames.has(name)) {
+      while (usedNames.has(name) && kind !== "radio") {
         n++;
         name = `${baseName}_${n}`;
       }
-      usedNames.add(name);
-      const tf = form.createTextField(name);
-      tf.addToPage(page, {
+      if (kind !== "radio") usedNames.add(name);
+      const rect = {
         x: f.x,
         y: page.getHeight() - f.y - f.height,
         width: f.width,
         height: f.height,
-      });
-      if (typeof f.fontSize === "number") {
-        try {
-          tf.setFontSize(f.fontSize);
-        } catch {
-          // ignore font sizing issues
+      };
+
+      try {
+        if (kind === "checkbox") {
+          const cb = form.createCheckBox(name);
+          cb.addToPage(page, rect);
+          try {
+            if (f.checked) cb.check();
+            else cb.uncheck();
+          } catch {
+            // ignore
+          }
+        } else if (kind === "radio") {
+          // Radio buttons are grouped by `groupName` (or `name` fallback).
+          const groupName = name;
+          let entry = radioGroups.get(groupName);
+          if (!entry) {
+            // Ensure group name is unique across all non-radio fields, too.
+            let gname = groupName;
+            let gi = 1;
+            while (usedNames.has(gname)) {
+              gi++;
+              gname = `${groupName}_${gi}`;
+            }
+            usedNames.add(gname);
+            const rg = form.createRadioGroup(gname);
+            entry = { group: rg, optionIds: new Set<string>() };
+            radioGroups.set(groupName, entry);
+          }
+
+          const optionId = `opt_${String(f.id || "").replace(/[^a-z0-9_]/gi, "_") || Date.now()}`;
+          if (!entry.optionIds.has(optionId)) {
+            entry.optionIds.add(optionId);
+            entry.group.addOptionToPage(optionId, page, rect);
+          }
+
+          try {
+            if (f.checked) entry.group.select?.(optionId);
+          } catch {
+            // ignore
+          }
+        } else if (kind === "select") {
+          const dd = form.createDropdown(name);
+          const options =
+            Array.isArray(f.options) && f.options.length > 0 ? f.options : ["Option 1", "Option 2"];
+          dd.addOptions(options);
+          dd.addToPage(page, rect);
+          if (typeof f.value === "string" && f.value) {
+            try {
+              (dd as any).select?.(f.value);
+              (dd as any).setSelected?.(f.value);
+            } catch {
+              // ignore
+            }
+          }
+        } else if (kind === "list") {
+          const ol = form.createOptionList(name);
+          const options =
+            Array.isArray(f.options) && f.options.length > 0 ? f.options : ["Option 1", "Option 2"];
+          ol.addOptions(options);
+          ol.addToPage(page, rect);
+          const selectedValues =
+            Array.isArray(f.values) && f.values.length > 0 ? f.values : typeof f.value === "string" && f.value ? [f.value] : [];
+          if (selectedValues.length > 0) {
+            try {
+              (ol as any).select?.(selectedValues);
+              (ol as any).setSelected?.(selectedValues);
+            } catch {
+              // ignore
+            }
+          }
+        } else if (kind === "signature") {
+          // pdf-lib supports signature form fields in v1.17+, but keep this safe.
+          const sig = (form as any).createSignature?.(name);
+          if (sig?.addToPage) sig.addToPage(page, rect);
+          else {
+            // Fallback: create a text field placeholder if signature fields aren't available.
+            const tf = form.createTextField(name);
+            tf.addToPage(page, rect);
+          }
+        } else {
+          // "text" + "date" fall back to text field.
+          const tf = form.createTextField(name);
+          tf.addToPage(page, rect);
+          if (typeof f.fontSize === "number") {
+            try {
+              tf.setFontSize(f.fontSize);
+            } catch {
+              // ignore font sizing issues
+            }
+          }
+          if (f.multiline) {
+            try {
+              (tf as any).enableMultiline?.();
+            } catch {
+              // ignore
+            }
+          }
+          if (typeof f.value === "string") {
+            try {
+              tf.setText(f.value);
+            } catch {
+              // ignore text setting issues
+            }
+          }
+        }
+      } catch {
+        // If a specific field type fails (older pdf-lib behavior), degrade to a text field.
+        const tf = form.createTextField(name);
+        tf.addToPage(page, rect);
+        if (f.multiline) {
+          try {
+            (tf as any).enableMultiline?.();
+          } catch {
+            // ignore
+          }
+        }
+        if (typeof f.value === "string") {
+          try {
+            tf.setText(f.value);
+          } catch {
+            // ignore
+          }
         }
       }
     }

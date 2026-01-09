@@ -5,10 +5,11 @@ import { Download, FileText, Loader2, Save, Search } from "lucide-react";
 import { useEditor } from "@/hooks/useEditor";
 import { PDFViewer } from "@/components/PDFViewerClient";
 import { EditorFloatingControls, EditorToolbar } from "@/components/EditorToolbar";
-import { SignaturePad } from "@/components/SignaturePad";
+import { SignaturePad } from "./SignaturePad";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { Button } from "@/components/ui/button";
 import { DrawToolsPanel } from "@/components/DrawToolsPanel";
+import { FieldsPanel } from "@/components/FieldsPanel";
 
 /**
  * Staff-Level Editor Component
@@ -82,6 +83,14 @@ export default function Editor() {
                 editor.splitCurrentPageToDownload();
                 return;
               }
+              if (tool === "sign") {
+                editor.setActiveTool("sign");
+                // Open the signature modal immediately unless the user is already holding a signature to place.
+                if (!editor.pendingSignature) {
+                  editor.handleSignRequest();
+                }
+                return;
+              }
               editor.setActiveTool(tool);
             }}
           />
@@ -99,9 +108,20 @@ export default function Editor() {
             onPageOrderChange={editor.setPageOrder}
             onPageCountChange={editor.setTotalPages}
             activeTool={editor.activeTool}
+            dockPanel={
+              editor.activeTool === "field" ? (
+                <FieldsPanel
+                  variant="docked"
+                  selected={editor.fieldKind}
+                  onSelect={editor.setFieldKind}
+                  onClose={() => editor.setActiveTool("select")}
+                />
+              ) : null
+            }
             onSignRequest={editor.handleSignRequest}
             signatureOverlays={editor.signatureOverlays}
             onSignatureOverlaysChange={editor.setSignatureOverlays}
+            onSignatureOverlaysCommit={editor.saveToHistory}
             pendingSignature={editor.pendingSignature}
             onPendingSignaturePlaced={() => {
               editor.setPendingSignature(null);
@@ -117,6 +137,7 @@ export default function Editor() {
             }}
             imageOverlays={editor.imageOverlays}
             onImageOverlaysChange={editor.setImageOverlays}
+            onImageOverlaysCommit={editor.saveToHistory}
             pendingImage={editor.pendingImage}
             onPendingImageChange={editor.setPendingImage}
             onPendingImagePlaced={() => {
@@ -126,6 +147,7 @@ export default function Editor() {
             fieldOverlays={editor.fieldOverlays}
             onFieldOverlaysChange={editor.setFieldOverlays}
             onFieldOverlaysCommit={editor.saveToHistory}
+            fieldKind={editor.fieldKind}
           />
 
           {editor.activeTool === "draw" && (

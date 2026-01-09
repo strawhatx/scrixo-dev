@@ -3,15 +3,28 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as pdfjs from "pdfjs-dist/build/pdf.min.mjs";
 import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Check, ChevronDown, Copy, Loader2, Move, Plus, RotateCcw, RotateCw, SlidersHorizontal, Trash2 } from "lucide-react";
 
 import { ToolType } from "@/components/EditorToolbar";
 import type { DrawStrokeOverlay, FieldOverlay, ImageOverlay, SignatureOverlay } from "@/lib/pdf-utils";
+import type { FieldKind } from "@/types/fields";
+import { Button } from "./ui/button";
+import { Switch } from "./ui/switch";
 
 // Set up PDF.js worker (served from `/public/pdfjs/` via `scripts/copy-pdf-worker.mjs`)
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
 
 const DEFAULT_SIGNATURE_SIZE_PX = { width: 150, height: 50 };
+const FIELD_DRAG_MIME = "application/x-scrixo-field";
+type FieldOverlayWithKind = FieldOverlay & {
+  kind?: FieldKind;
+  groupName?: string;
+  value?: string;
+  values?: string[];
+  multiline?: boolean;
+  checked?: boolean;
+  options?: string[];
+};
 
 interface PDFViewerProps {
   file: File;
@@ -35,6 +48,7 @@ interface PDFViewerProps {
   onSignatureOverlaysChange: (overlays: SignatureOverlay[]) => void;
   pendingSignature: string | null;
   onPendingSignaturePlaced: () => void;
+  onSignatureOverlaysCommit?: () => void;
 
   // Draw
   drawStrokes: DrawStrokeOverlay[];
@@ -52,11 +66,16 @@ interface PDFViewerProps {
   pendingImage: string | null;
   onPendingImageChange: (dataUrl: string | null) => void;
   onPendingImagePlaced: () => void;
+  onImageOverlaysCommit?: () => void;
 
   // Fields
-  fieldOverlays: FieldOverlay[];
-  onFieldOverlaysChange: (overlays: FieldOverlay[]) => void;
+  fieldOverlays: FieldOverlayWithKind[];
+  onFieldOverlaysChange: (overlays: FieldOverlayWithKind[]) => void;
   onFieldOverlaysCommit?: () => void;
+  fieldKind?: FieldKind;
+
+  // Optional docked panel rendered between the Pages sidebar and the PDF viewport (e.g. Fields panel)
+  dockPanel?: React.ReactNode;
 }
 
 function LoadingState() {
@@ -76,6 +95,7 @@ function PagesSidebar({
   totalPages,
   pagesListRef,
   onGoToPage,
+  thumbnailsByPage,
   rearrangeEnabled,
   onMovePage,
 }: {
@@ -84,42 +104,60 @@ function PagesSidebar({
   totalPages: number;
   pagesListRef: React.RefObject<HTMLDivElement | null>;
   onGoToPage: (page: number) => void;
+  thumbnailsByPage?: Record<number, string>;
   rearrangeEnabled?: boolean;
   onMovePage?: (fromIndex: number, toIndex: number) => void;
 }) {
   return (
-    <aside className="w-56 shrink-0 border-r border-border bg-card/50 backdrop-blur-sm">
-      <div className="px-3 py-2 border-b border-border">
-        <div className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
-          Pages
-        </div>
-        <div className="text-xs text-muted-foreground mt-1">{totalPages} total</div>
+    <aside className="w-42 flex flex-col items-center shrink-0 border-r border-border bg-card/50 backdrop-blur-sm">
+      <div className="px-1.5 py-1.5 border-b border-border">
+        <Button
+          type="button"
+          disabled
+          className="w-full h-8 rounded-xl border border-border bg-background/60 text-foreground flex items-center justify-center gap-2 hover:bg-muted disabled:opacity-60 disabled:cursor-not-allowed"
+          title="Add page (coming soon)"
+        >
+          <Plus className="h-5 w-5" />
+          <span className="hidden font-semibold md:inline">Add page</span>
+          <ChevronDown className="hidden h-4 w-4 opacity-70 md:inline" />
+        </Button>
       </div>
 
-      <div ref={pagesListRef} className="h-[calc(100%-49px)] overflow-auto p-2">
+      <div ref={pagesListRef} className="h-[calc(100%-60px)] w-28 overflow-auto p-1.5">
         {pageNumbers.map((pageNum, idx) => {
-          const isActive = pageNum === currentPage;
+          const isActive = pageNum === currentPage; 
+          const thumb = thumbnailsByPage?.[pageNum];
           return (
-            <div key={pageNum} className="mb-1 flex items-stretch gap-1">
+            <div key={pageNum} className="mb-2 flex items-start gap-2">
               <button
                 type="button"
                 data-page={pageNum}
                 onClick={() => onGoToPage(pageNum)}
                 aria-current={isActive ? "page" : undefined}
                 className={[
-                  "flex-1 text-left rounded-lg px-3 py-2 border transition-colors",
+                  "flex-1 text-left rounded-2xl border transition-colors overflow-hidden bg-background/40",
                   isActive
-                    ? "bg-primary/10 border-primary/30 text-primary"
-                    : "bg-background/40 border-border text-foreground hover:bg-muted/70",
+                    ? "border-primary ring-2 ring-primary/25"
+                    : "border-border hover:bg-muted/70",
                 ].join(" ")}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold">Page {pageNum}</span>
-                  {isActive && (
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary/80">
-                      Active
-                    </span>
-                  )}
+                <div className="p-1">
+                  <div className="rounded-xl bg-muted/20 border border-border overflow-hidden aspect-[3/4] flex items-center justify-center">
+                    {thumb ? (
+                      <img
+                        src={thumb}
+                        alt={`Page ${pageNum}`}
+                        className="w-full h-full object-contain"
+                        draggable={false}
+                      />
+                    ) : (
+                      <div className="text-[10px] text-muted-foreground">Preview…</div>
+                    )}
+                  </div>
+                </div>
+                <div className="px-2 py-1 flex items-center justify-between">
+                  <span className="text-[10px] font-semibold text-foreground">{pageNum}</span>
+                  {isActive && <span className="text-[10px] font-bold text-primary">•</span>}
                 </div>
               </button>
 
@@ -174,6 +212,7 @@ export function PDFViewer(props: PDFViewerProps) {
     onSignatureOverlaysChange,
     pendingSignature,
     onPendingSignaturePlaced,
+    onSignatureOverlaysCommit,
     drawStrokes,
     onDrawStrokesChange,
     onDrawStrokesCommit,
@@ -183,9 +222,12 @@ export function PDFViewer(props: PDFViewerProps) {
     pendingImage,
     onPendingImageChange,
     onPendingImagePlaced,
+    onImageOverlaysCommit,
     fieldOverlays,
     onFieldOverlaysChange,
     onFieldOverlaysCommit,
+    fieldKind,
+    dockPanel,
   } = props;
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -201,12 +243,22 @@ export function PDFViewer(props: PDFViewerProps) {
   const [loading, setLoading] = useState(true);
   const [pdfDoc, setPdfDoc] = useState<pdfjs.PDFDocumentProxy | null>(null);
   const [pageLayouts, setPageLayouts] = useState<
-    Array<{ page: number; width: number; height: number; viewportTransform: [number, number, number, number, number, number] }>
+    Array<{
+      page: number;
+      width: number; // CSS px at current zoom
+      height: number; // CSS px at current zoom
+      baseWidth: number; // scale=1 units (zoom-independent)
+      baseHeight: number; // scale=1 units (zoom-independent)
+      viewportTransform: [number, number, number, number, number, number];
+    }>
   >([]);
 
   // PDF.js text layer (for "Select" tool)
   const [textItemsByPage, setTextItemsByPage] = useState<Record<number, any[]>>({});
   const loadedTextPagesRef = useRef<Set<number>>(new Set());
+
+  const overlaysNormalizedRef = useRef(false);
+  const [pageThumbs, setPageThumbs] = useState<Record<number, string>>({});
 
   const totalPages = pdfDoc?.numPages ?? 0;
   const pageNumbers = useMemo(() => {
@@ -217,7 +269,7 @@ export function PDFViewer(props: PDFViewerProps) {
   const overlaysByPage = useMemo(() => {
     const byPage = new Map<
       number,
-      { sigs: SignatureOverlay[]; imgs: ImageOverlay[]; fields: FieldOverlay[] }
+      { sigs: SignatureOverlay[]; imgs: ImageOverlay[]; fields: FieldOverlayWithKind[] }
     >();
     for (const s of signatureOverlays) {
       const entry = byPage.get(s.page) ?? { sigs: [], imgs: [], fields: [] };
@@ -236,6 +288,229 @@ export function PDFViewer(props: PDFViewerProps) {
     }
     return byPage;
   }, [fieldOverlays, imageOverlays, signatureOverlays]);
+
+  const canInteractOverlays =
+    activeTool === "select" || activeTool === "sign" || activeTool === "image" || activeTool === "field";
+  const [activeOverlay, setActiveOverlay] = useState<
+    { type: "sig" | "img" | "field"; id: string; page: number } | null
+  >(null);
+  const [fieldOptionsOpen, setFieldOptionsOpen] = useState<{ id: string; page: number } | null>(null);
+  const interactionRef = useRef<{
+    kind: "drag" | "resize";
+    type: "sig" | "img" | "field";
+    id: string;
+    page: number;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startW: number;
+    startH: number;
+    startClientX: number;
+    startClientY: number;
+    handle?: "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+    changed: boolean;
+  } | null>(null);
+
+  const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+
+  const updateSignatureOverlay = useCallback(
+    (page: number, id: string, patch: Partial<SignatureOverlay>) => {
+      onSignatureOverlaysChange(
+        signatureOverlays.map((s) => (s.page === page && s.id === id ? { ...s, ...patch } : s))
+      );
+    },
+    [onSignatureOverlaysChange, signatureOverlays]
+  );
+
+  const updateImageOverlay = useCallback(
+    (page: number, id: string, patch: Partial<ImageOverlay>) => {
+      onImageOverlaysChange(imageOverlays.map((i) => (i.page === page && i.id === id ? { ...i, ...patch } : i)));
+    },
+    [imageOverlays, onImageOverlaysChange]
+  );
+
+  const updateFieldOverlay = useCallback(
+    (page: number, id: string, patch: Partial<FieldOverlayWithKind>) => {
+      onFieldOverlaysChange(fieldOverlays.map((f) => (f.page === page && f.id === id ? { ...f, ...patch } : f)));
+    },
+    [fieldOverlays, onFieldOverlaysChange]
+  );
+
+  const toggleRadioInGroup = useCallback(
+    (page: number, id: string) => {
+      const target = fieldOverlays.find((f) => f.page === page && f.id === id);
+      if (!target) return;
+      const groupName = (target.groupName || target.name || "").trim();
+      const nextChecked = !target.checked;
+      onFieldOverlaysChange(
+        fieldOverlays.map((f) => {
+          if (f.kind !== "radio") return f;
+          const fGroup = (f.groupName || f.name || "").trim();
+          if (!groupName || fGroup !== groupName) return f;
+          if (f.page === page && f.id === id) return { ...f, checked: nextChecked };
+          return { ...f, checked: false };
+        })
+      );
+      onFieldOverlaysCommit?.();
+    },
+    [fieldOverlays, onFieldOverlaysChange, onFieldOverlaysCommit]
+  );
+
+  const duplicateFieldOverlay = useCallback(
+    (page: number, id: string) => {
+      const src = fieldOverlays.find((f) => f.page === page && f.id === id);
+      if (!src) return;
+      const stamp = Date.now();
+      const copy: FieldOverlayWithKind = {
+        ...src,
+        id: `field-${stamp}`,
+        name: `${(src.name || "field").trim() || "field"}_copy`,
+        x: src.x + 12,
+        y: src.y + 12,
+      };
+      onFieldOverlaysChange([...fieldOverlays, copy]);
+      onFieldOverlaysCommit?.();
+      setActiveOverlay({ type: "field", id: copy.id, page });
+    },
+    [fieldOverlays, onFieldOverlaysChange, onFieldOverlaysCommit]
+  );
+
+  const deleteOverlay = useCallback(
+    (type: "sig" | "img" | "field", page: number, id: string) => {
+      if (type === "sig") {
+        onSignatureOverlaysChange(signatureOverlays.filter((s) => !(s.page === page && s.id === id)));
+        onSignatureOverlaysCommit?.();
+      } else {
+        if (type === "img") {
+          onImageOverlaysChange(imageOverlays.filter((i) => !(i.page === page && i.id === id)));
+          onImageOverlaysCommit?.();
+        } else {
+          onFieldOverlaysChange(fieldOverlays.filter((f) => !(f.page === page && f.id === id)));
+          onFieldOverlaysCommit?.();
+        }
+      }
+      setActiveOverlay(null);
+    },
+    [
+      imageOverlays,
+      onImageOverlaysChange,
+      onImageOverlaysCommit,
+      fieldOverlays,
+      onFieldOverlaysChange,
+      onFieldOverlaysCommit,
+      onSignatureOverlaysChange,
+      onSignatureOverlaysCommit,
+      signatureOverlays,
+    ]
+  );
+
+  const finishInteraction = useCallback(() => {
+    const inter = interactionRef.current;
+    if (!inter) return;
+    interactionRef.current = null;
+    if (inter.changed) {
+      if (inter.type === "sig") onSignatureOverlaysCommit?.();
+      else if (inter.type === "img") onImageOverlaysCommit?.();
+      else onFieldOverlaysCommit?.();
+    }
+  }, [onFieldOverlaysCommit, onImageOverlaysCommit, onSignatureOverlaysCommit]);
+
+  const getFieldDefaults = useCallback((kind: FieldKind) => {
+    switch (kind) {
+      case "signature":
+        return { width: 220, height: 60, fontSize: undefined as number | undefined };
+      case "checkbox":
+      case "radio":
+        return { width: 18, height: 18, fontSize: undefined as number | undefined };
+      case "date":
+        return { width: 180, height: 36, fontSize: 12 };
+      case "select":
+        return { width: 240, height: 36, fontSize: 12 };
+      case "list":
+        return { width: 240, height: 84, fontSize: 12 };
+      case "text":
+      default:
+        return { width: 220, height: 36, fontSize: 12 };
+    }
+  }, []);
+
+  const placeFieldAt = useCallback(
+    (pageNum: number, xCss: number, yCss: number, kind: FieldKind) => {
+      const layout = pageLayouts.find((l) => l.page === pageNum);
+      const scale = layout && layout.baseWidth ? layout.width / layout.baseWidth : 1;
+      const bx = xCss / scale;
+      const by = yCss / scale;
+      const { width, height, fontSize } = getFieldDefaults(kind);
+
+      const stamp = Date.now();
+      const newField: FieldOverlayWithKind = {
+        id: `field-${stamp}`,
+        kind,
+        name: `${kind}_${pageNum}_${stamp}`,
+        groupName: kind === "radio" ? `radio_group_${pageNum}_${stamp}` : undefined,
+        x: bx - width / 2,
+        y: by - height / 2,
+        width,
+        height,
+        fontSize,
+        options:
+          kind === "select"
+            ? ["Option 1", "Option 2"]
+            : kind === "list"
+              ? ["Option 1", "Option 2"]
+              : undefined,
+        page: pageNum,
+      };
+      onFieldOverlaysChange([...fieldOverlays, newField]);
+      onFieldOverlaysCommit?.();
+    },
+    [fieldOverlays, getFieldDefaults, onFieldOverlaysChange, onFieldOverlaysCommit, pageLayouts]
+  );
+
+  // One-time normalization: convert any existing overlays that were stored in zoom-scaled CSS px
+  // into scale=1 units, so they stay anchored when zoom changes.
+  useEffect(() => {
+    if (overlaysNormalizedRef.current) return;
+    if (pageLayouts.length === 0) return;
+
+    const scaleByPage = new Map<number, number>();
+    for (const l of pageLayouts) {
+      const s = l.baseWidth > 0 ? l.width / l.baseWidth : 1;
+      scaleByPage.set(l.page, s || 1);
+    }
+
+    const normalizeList = <T extends { page: number; x: number; y: number; width: number; height: number }>(
+      list: T[]
+    ) => {
+      return list.map((o) => {
+        const s = scaleByPage.get(o.page) ?? 1;
+        if (!s || s === 1) return o;
+        // Heuristic: if values look "too large" for base units, divide by scale.
+        // We only run once per file load to avoid double-scaling.
+        return {
+          ...o,
+          x: o.x / s,
+          y: o.y / s,
+          width: o.width / s,
+          height: o.height / s,
+        };
+      });
+    };
+
+    onSignatureOverlaysChange(normalizeList(signatureOverlays));
+    onImageOverlaysChange(normalizeList(imageOverlays));
+    onFieldOverlaysChange(normalizeList(fieldOverlays));
+    overlaysNormalizedRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    fieldOverlays,
+    imageOverlays,
+    onFieldOverlaysChange,
+    onImageOverlaysChange,
+    onSignatureOverlaysChange,
+    pageLayouts,
+    signatureOverlays,
+  ]);
 
   // -----------------------------
   // Load PDF
@@ -256,6 +531,7 @@ export function PDFViewer(props: PDFViewerProps) {
         // Reset cached text content whenever a new PDF is loaded.
         setTextItemsByPage({});
         loadedTextPagesRef.current = new Set();
+        overlaysNormalizedRef.current = false;
         onPageCountChange(pdf.numPages);
       } finally {
         if (!cancelled) setLoading(false);
@@ -309,6 +585,8 @@ export function PDFViewer(props: PDFViewerProps) {
         page: number;
         width: number;
         height: number;
+        baseWidth: number;
+        baseHeight: number;
         viewportTransform: [number, number, number, number, number, number];
       }> = [];
       for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
@@ -316,10 +594,13 @@ export function PDFViewer(props: PDFViewerProps) {
         if (cancelled) return;
         const pageRot = (rotation + (pageRotations?.[pageNum] ?? 0)) % 360;
         const viewport = page.getViewport({ scale, rotation: pageRot });
+        const baseViewport = page.getViewport({ scale: 1, rotation: pageRot });
         layouts.push({
           page: pageNum,
           width: viewport.width,
           height: viewport.height,
+          baseWidth: baseViewport.width,
+          baseHeight: baseViewport.height,
           viewportTransform: viewport.transform as any,
         });
       }
@@ -360,6 +641,27 @@ export function PDFViewer(props: PDFViewerProps) {
         renderTasksRef.current.set(pageNum, task);
         try {
           await task.promise;
+          // Generate a lightweight thumbnail for the Pages sidebar.
+          try {
+            const src = canvas;
+            const maxW = 140;
+            const aspect = src.height > 0 && src.width > 0 ? src.height / src.width : 1.333;
+            const tw = maxW;
+            const th = Math.max(1, Math.round(maxW * aspect));
+            const off = document.createElement("canvas");
+            off.width = tw;
+            off.height = th;
+            const octx = off.getContext("2d");
+            if (octx) {
+              octx.imageSmoothingEnabled = true;
+              octx.imageSmoothingQuality = "high";
+              octx.drawImage(src, 0, 0, src.width, src.height, 0, 0, tw, th);
+              const url = off.toDataURL("image/png");
+              setPageThumbs((prev) => (prev[pageNum] === url ? prev : { ...prev, [pageNum]: url }));
+            }
+          } catch {
+            // ignore thumbnail errors
+          }
         } catch (err) {
           if (!isRenderingCancelled(err)) throw err;
         } finally {
@@ -701,14 +1003,20 @@ export function PDFViewer(props: PDFViewerProps) {
       if (activeTool === "sign") {
         if (pendingSignature) {
           const { width, height } = DEFAULT_SIGNATURE_SIZE_PX;
+          const layout = pageLayouts.find((l) => l.page === pageNum);
+          const scale = layout && layout.baseWidth ? layout.width / layout.baseWidth : 1;
+          const bx = x / scale;
+          const by = y / scale;
           const newSig: SignatureOverlay = {
             id: `sig-${Date.now()}`,
             imageData: pendingSignature,
-            x: x - width / 2,
-            y: y - height / 2,
+            x: bx - width / 2,
+            y: by - height / 2,
             width,
             height,
             page: pageNum,
+            opacity: 1,
+            rotation: 0,
           };
           onSignatureOverlaysChange([...signatureOverlays, newSig]);
           onPendingSignaturePlaced();
@@ -722,14 +1030,20 @@ export function PDFViewer(props: PDFViewerProps) {
         if (pendingImage) {
           const width = 220;
           const height = 220;
+          const layout = pageLayouts.find((l) => l.page === pageNum);
+          const scale = layout && layout.baseWidth ? layout.width / layout.baseWidth : 1;
+          const bx = x / scale;
+          const by = y / scale;
           const newImg: ImageOverlay = {
             id: `img-${Date.now()}`,
             imageData: pendingImage,
-            x: x - width / 2,
-            y: y - height / 2,
+            x: bx - width / 2,
+            y: by - height / 2,
             width,
             height,
             page: pageNum,
+            opacity: 1,
+            rotation: 0,
           };
           onImageOverlaysChange([...imageOverlays, newImg]);
           onPendingImagePlaced();
@@ -738,30 +1052,10 @@ export function PDFViewer(props: PDFViewerProps) {
         }
         return;
       }
-
-      if (activeTool === "field") {
-        const width = 220;
-        const height = 36;
-        const newField: FieldOverlay = {
-          id: `field-${Date.now()}`,
-          name: `field_${pageNum}_${Date.now()}`,
-          x: x - width / 2,
-          y: y - height / 2,
-          width,
-          height,
-          fontSize: 12,
-          page: pageNum,
-        };
-        onFieldOverlaysChange([...fieldOverlays, newField]);
-        onFieldOverlaysCommit?.();
-      }
     },
     [
       activeTool,
-      fieldOverlays,
       imageOverlays,
-      onFieldOverlaysChange,
-      onFieldOverlaysCommit,
       onImageOverlaysChange,
       onPendingImagePlaced,
       onPendingSignaturePlaced,
@@ -771,6 +1065,192 @@ export function PDFViewer(props: PDFViewerProps) {
       pendingSignature,
       signatureOverlays,
     ]
+  );
+
+  const tryParseDraggedFieldKind = useCallback((e: React.DragEvent) => {
+    const isKind = (k: any): k is FieldKind =>
+      k === "signature" ||
+      k === "text" ||
+      k === "checkbox" ||
+      k === "radio" ||
+      k === "select" ||
+      k === "date" ||
+      k === "list";
+
+    // Prefer the custom payload, but fall back to text/plain for Safari + cross-app drags.
+    const candidates: string[] = [];
+    try {
+      const rawCustom = e.dataTransfer.getData(FIELD_DRAG_MIME);
+      if (rawCustom) candidates.push(rawCustom);
+    } catch {
+      // ignore
+    }
+    try {
+      const rawText = e.dataTransfer.getData("text/plain");
+      if (rawText) candidates.push(rawText);
+    } catch {
+      // ignore
+    }
+
+    for (const raw of candidates) {
+      // Raw can be either JSON {kind} or just the kind string.
+      try {
+        const parsed = JSON.parse(raw) as { kind?: unknown };
+        if (isKind(parsed?.kind)) return parsed.kind;
+      } catch {
+        if (isKind(raw)) return raw;
+      }
+    }
+    return null;
+  }, []);
+
+  const startOverlayDrag = useCallback(
+    (
+      type: "sig" | "img" | "field",
+      pageNum: number,
+      id: string,
+      e: React.PointerEvent<HTMLDivElement>,
+      startRect: { x: number; y: number; width: number; height: number }
+    ) => {
+      if (!canInteractOverlays) return;
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setActiveOverlay({ type, id, page: pageNum });
+      try {
+        (e.currentTarget as any).setPointerCapture?.(e.pointerId);
+      } catch {
+        // ignore
+      }
+      interactionRef.current = {
+        kind: "drag",
+        type,
+        id,
+        page: pageNum,
+        pointerId: e.pointerId,
+        startX: startRect.x,
+        startY: startRect.y,
+        startW: startRect.width,
+        startH: startRect.height,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        changed: false,
+      };
+    },
+    [canInteractOverlays]
+  );
+
+  const startOverlayResize = useCallback(
+    (
+      type: "sig" | "img" | "field",
+      pageNum: number,
+      id: string,
+      handle: "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw",
+      e: React.PointerEvent<HTMLDivElement>,
+      startRect: { x: number; y: number; width: number; height: number }
+    ) => {
+      if (!canInteractOverlays) return;
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setActiveOverlay({ type, id, page: pageNum });
+      try {
+        (e.currentTarget as any).setPointerCapture?.(e.pointerId);
+      } catch {
+        // ignore
+      }
+      interactionRef.current = {
+        kind: "resize",
+        type,
+        id,
+        page: pageNum,
+        pointerId: e.pointerId,
+        startX: startRect.x,
+        startY: startRect.y,
+        startW: startRect.width,
+        startH: startRect.height,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        handle,
+        changed: false,
+      };
+    },
+    [canInteractOverlays]
+  );
+
+  const onOverlayPointerMove = useCallback(
+    (pageNum: number, layout: { width: number; height: number }, e: React.PointerEvent) => {
+      const inter = interactionRef.current;
+      if (!inter) return;
+      if (inter.page !== pageNum) return;
+      if (inter.pointerId !== e.pointerId) return;
+
+      const dx = e.clientX - inter.startClientX;
+      const dy = e.clientY - inter.startClientY;
+      const minSize = inter.type === "field" ? 12 : 24;
+
+      let x = inter.startX;
+      let y = inter.startY;
+      let w = inter.startW;
+      let h = inter.startH;
+
+      if (inter.kind === "drag") {
+        x = inter.startX + dx;
+        y = inter.startY + dy;
+      } else {
+        const handle = inter.handle!;
+        const east = handle.includes("e");
+        const west = handle.includes("w");
+        const north = handle.includes("n");
+        const south = handle.includes("s");
+
+        if (east) w = inter.startW + dx;
+        if (west) {
+          w = inter.startW - dx;
+          x = inter.startX + dx;
+        }
+        if (south) h = inter.startH + dy;
+        if (north) {
+          h = inter.startH - dy;
+          y = inter.startY + dy;
+        }
+
+        if (w < minSize) {
+          if (west) x -= minSize - w;
+          w = minSize;
+        }
+        if (h < minSize) {
+          if (north) y -= minSize - h;
+          h = minSize;
+        }
+      }
+
+      // Clamp to page bounds
+      w = Math.min(w, layout.width);
+      h = Math.min(h, layout.height);
+      x = clamp(x, 0, layout.width - w);
+      y = clamp(y, 0, layout.height - h);
+
+      inter.changed = true;
+      const layoutEntry = pageLayouts.find((l) => l.page === pageNum);
+      const scale = layoutEntry && layoutEntry.baseWidth ? layoutEntry.width / layoutEntry.baseWidth : 1;
+      const bx = x / scale;
+      const by = y / scale;
+      const bw = w / scale;
+      const bh = h / scale;
+      if (inter.type === "sig") updateSignatureOverlay(pageNum, inter.id, { x: bx, y: by, width: bw, height: bh });
+      else if (inter.type === "img") updateImageOverlay(pageNum, inter.id, { x: bx, y: by, width: bw, height: bh });
+      else updateFieldOverlay(pageNum, inter.id, { x: bx, y: by, width: bw, height: bh });
+    },
+    [clamp, pageLayouts, updateFieldOverlay, updateImageOverlay, updateSignatureOverlay]
+  );
+
+  const adjustOverlay = useCallback(
+    (type: "sig" | "img", page: number, id: string, patch: { opacity?: number; rotation?: number }) => {
+      if (type === "sig") updateSignatureOverlay(page, id, patch as any);
+      else updateImageOverlay(page, id, patch as any);
+    },
+    [updateImageOverlay, updateSignatureOverlay]
   );
 
   if (loading) return <LoadingState />;
@@ -802,6 +1282,7 @@ export function PDFViewer(props: PDFViewerProps) {
         totalPages={totalPages}
         pagesListRef={pagesListRef}
         onGoToPage={handleGoToPage}
+        thumbnailsByPage={pageThumbs}
         rearrangeEnabled={activeTool === "rearrange"}
         onMovePage={(from, to) => {
           if (!onPageOrderChange) return;
@@ -812,6 +1293,8 @@ export function PDFViewer(props: PDFViewerProps) {
           onPageOrderChange(next);
         }}
       />
+
+      {dockPanel}
 
       <div
         ref={scrollRef}
@@ -831,7 +1314,13 @@ export function PDFViewer(props: PDFViewerProps) {
                 {pageNumbers.map((pageNum) => {
                   const layout = pageLayouts.find((l) => l.page === pageNum);
                   if (!layout) return null;
-                  const entry = overlaysByPage.get(pageNum) ?? { sigs: [], imgs: [], fields: [] };
+                  const entry =
+                    overlaysByPage.get(pageNum) ??
+                    ({ sigs: [], imgs: [], fields: [] } as {
+                      sigs: SignatureOverlay[];
+                      imgs: ImageOverlay[];
+                      fields: FieldOverlayWithKind[];
+                    });
                   const isActive = pageNum === currentPage;
                   return (
                     <div
@@ -844,6 +1333,31 @@ export function PDFViewer(props: PDFViewerProps) {
                         " "
                       )}
                       style={{ width: layout.width, height: layout.height }}
+                      onDragOver={(e) => {
+                        // Some browsers don't allow reading drag data during dragover.
+                        // If it looks like a compatible drag, allow the drop, then parse onDrop.
+                        const types = Array.from(e.dataTransfer.types ?? []);
+                        const looksLikeFieldDrag =
+                          types.includes(FIELD_DRAG_MIME) || types.includes("text/plain") || types.includes("Text");
+                        if (!looksLikeFieldDrag) return;
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "copy";
+                      }}
+                      onDrop={(e) => {
+                        const kind = tryParseDraggedFieldKind(e);
+                        if (!kind) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const container = pageContainerRefs.current.get(pageNum);
+                        if (!container) return;
+                        const rect = container.getBoundingClientRect();
+                        const x = e.clientX - rect.left;
+                        const y = e.clientY - rect.top;
+                        placeFieldAt(pageNum, x, y, kind);
+                      }}
+                      onPointerDown={(e) => {
+                        if (canInteractOverlays && e.target === e.currentTarget) setActiveOverlay(null);
+                      }}
                       onClick={(e) => handlePageClick(pageNum, e)}
                     >
                       <canvas
@@ -892,39 +1406,825 @@ export function PDFViewer(props: PDFViewerProps) {
                       />
 
                       {/* Signatures (render-only) */}
-                      {entry.sigs.map((sig) => (
-                        <img
+                      {entry.sigs.map((sig) => {
+                        const scale = layout.baseWidth ? layout.width / layout.baseWidth : 1;
+                        const left = sig.x * scale;
+                        const top = sig.y * scale;
+                        const width = sig.width * scale;
+                        const height = sig.height * scale;
+                        const rot = sig.rotation ?? 0;
+                        const opacity = typeof sig.opacity === "number" ? sig.opacity : 1;
+                        const isSelected =
+                          canInteractOverlays &&
+                          activeOverlay?.type === "sig" &&
+                          activeOverlay.id === sig.id &&
+                          activeOverlay.page === pageNum;
+                        return (
+                          <div
                           key={sig.id}
+                            className="absolute"
+                            style={{
+                              left,
+                              top,
+                              width,
+                              height,
+                              pointerEvents: canInteractOverlays ? "auto" : "none",
+                              touchAction: "none",
+                              opacity,
+                            }}
+                            onPointerDown={(e) =>
+                              startOverlayDrag("sig", pageNum, sig.id, e, {
+                                x: left,
+                                y: top,
+                                width,
+                                height,
+                              })
+                            }
+                            onPointerMove={(e) => onOverlayPointerMove(pageNum, layout, e)}
+                            onPointerUp={() => finishInteraction()}
+                            onPointerCancel={() => finishInteraction()}
+                            onClick={(e) => {
+                              if (!canInteractOverlays) return;
+                              e.stopPropagation();
+                              setActiveOverlay({ type: "sig", id: sig.id, page: pageNum });
+                            }}
+                          >
+                            <img
                           src={sig.imageData}
                           alt="Signature"
-                          className="absolute pointer-events-none"
-                          style={{ left: sig.x, top: sig.y, width: sig.width, height: sig.height }}
-                        />
-                      ))}
+                              className="absolute inset-0 h-full w-full object-contain select-none"
+                              style={{ transform: `rotate(${rot}deg)`, transformOrigin: "center" }}
+                              draggable={false}
+                            />
+
+                            {isSelected && (
+                              <div className="absolute inset-0">
+                                <div className="absolute inset-0 border-2 border-primary/80 rounded-sm" />
+                                {/* Toolbar */}
+                                <div className="absolute -top-12 left-0 right-0 flex justify-center pointer-events-none">
+                                  <div className="pointer-events-auto flex items-center gap-3 px-3 py-2 rounded-xl border border-border bg-card/95 shadow-lg">
+                                    <input
+                                      type="range"
+                                      min={10}
+                                      max={100}
+                                      value={Math.round(opacity * 100)}
+                                      onChange={(e) => {
+                                        const next = clamp(Number(e.target.value) / 100, 0.1, 1);
+                                        adjustOverlay("sig", pageNum, sig.id, { opacity: next });
+                                      }}
+                                      onPointerUp={() => onSignatureOverlaysCommit?.()}
+                                      className="w-28 accent-primary"
+                                      aria-label="Opacity"
+                                      title="Opacity"
+                                    />
+
+                                    <div className="h-6 w-px bg-border" />
+
+                                    <button
+                                      type="button"
+                                      className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center"
+                                      onClick={() => {
+                                        const next = ((rot - 90) % 360 + 360) % 360;
+                                        adjustOverlay("sig", pageNum, sig.id, { rotation: next });
+                                        onSignatureOverlaysCommit?.();
+                                      }}
+                                      aria-label="Rotate left"
+                                      title="Rotate left"
+                                    >
+                                      <RotateCcw className="h-5 w-5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center"
+                                      onClick={() => {
+                                        const next = ((rot + 90) % 360 + 360) % 360;
+                                        adjustOverlay("sig", pageNum, sig.id, { rotation: next });
+                                        onSignatureOverlaysCommit?.();
+                                      }}
+                                      aria-label="Rotate right"
+                                      title="Rotate right"
+                                    >
+                                      <RotateCw className="h-5 w-5" />
+                                    </button>
+
+                                    <div className="h-6 w-px bg-border" />
+
+                                    <button
+                                      type="button"
+                                      className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center"
+                                      onClick={() => deleteOverlay("sig", pageNum, sig.id)}
+                                      aria-label="Delete"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="h-5 w-5" />
+                                    </button>
+                                  </div>
+                                </div>
+                                {/* Delete */}
+                                <button
+                                  type="button"
+                                  className="absolute -top-3 -right-3 h-7 w-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    deleteOverlay("sig", pageNum, sig.id);
+                                  }}
+                                  aria-label="Delete signature"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                </button>
+
+                                {(["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const).map((h) => {
+                                  const pos: Record<string, React.CSSProperties> = {
+                                    nw: { left: -6, top: -6, cursor: "nwse-resize" },
+                                    n: { left: "50%", top: -6, transform: "translateX(-50%)", cursor: "ns-resize" },
+                                    ne: { right: -6, top: -6, cursor: "nesw-resize" },
+                                    e: { right: -6, top: "50%", transform: "translateY(-50%)", cursor: "ew-resize" },
+                                    se: { right: -6, bottom: -6, cursor: "nwse-resize" },
+                                    s: { left: "50%", bottom: -6, transform: "translateX(-50%)", cursor: "ns-resize" },
+                                    sw: { left: -6, bottom: -6, cursor: "nesw-resize" },
+                                    w: { left: -6, top: "50%", transform: "translateY(-50%)", cursor: "ew-resize" },
+                                  };
+                                  return (
+                                    <div
+                                      key={h}
+                                      style={pos[h]}
+                                      className="absolute h-3 w-3 rounded-full bg-background border border-primary shadow-sm"
+                                      onPointerDown={(e) =>
+                                        startOverlayResize(
+                                          "sig",
+                                          pageNum,
+                                          sig.id,
+                                          h,
+                                          e,
+                                          { x: left, y: top, width, height }
+                                        )
+                                      }
+                                      onPointerMove={(e) => onOverlayPointerMove(pageNum, layout, e)}
+                                      onPointerUp={() => finishInteraction()}
+                                      onPointerCancel={() => finishInteraction()}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
 
                       {/* Images (render-only) */}
-                      {entry.imgs.map((img) => (
-                        <img
+                      {entry.imgs.map((img) => {
+                        const scale = layout.baseWidth ? layout.width / layout.baseWidth : 1;
+                        const left = img.x * scale;
+                        const top = img.y * scale;
+                        const width = img.width * scale;
+                        const height = img.height * scale;
+                        const rot = img.rotation ?? 0;
+                        const opacity = typeof img.opacity === "number" ? img.opacity : 1;
+                        const isSelected =
+                          canInteractOverlays &&
+                          activeOverlay?.type === "img" &&
+                          activeOverlay.id === img.id &&
+                          activeOverlay.page === pageNum;
+                        return (
+                          <div
                           key={img.id}
+                            className="absolute"
+                            style={{
+                              left,
+                              top,
+                              width,
+                              height,
+                              pointerEvents: canInteractOverlays ? "auto" : "none",
+                              touchAction: "none",
+                              opacity,
+                            }}
+                            onPointerDown={(e) =>
+                              startOverlayDrag("img", pageNum, img.id, e, {
+                                x: left,
+                                y: top,
+                                width,
+                                height,
+                              })
+                            }
+                            onPointerMove={(e) => onOverlayPointerMove(pageNum, layout, e)}
+                            onPointerUp={() => finishInteraction()}
+                            onPointerCancel={() => finishInteraction()}
+                            onClick={(e) => {
+                              if (!canInteractOverlays) return;
+                              e.stopPropagation();
+                              setActiveOverlay({ type: "img", id: img.id, page: pageNum });
+                            }}
+                          >
+                            <img
                           src={img.imageData}
                           alt="Placed image"
-                          className="absolute pointer-events-none"
-                          style={{ left: img.x, top: img.y, width: img.width, height: img.height }}
-                        />
-                      ))}
+                              className="absolute inset-0 h-full w-full object-contain select-none"
+                              style={{ transform: `rotate(${rot}deg)`, transformOrigin: "center" }}
+                              draggable={false}
+                            />
 
-                      {/* Fields (visual placeholder only; actual field is embedded on export) */}
-                      {entry.fields.map((f) => (
-                        <div
-                          key={f.id}
-                          className="absolute rounded-sm border border-primary/40 bg-background/30 pointer-events-none"
-                          style={{ left: f.x, top: f.y, width: f.width, height: f.height }}
-                        >
-                          <div className="absolute inset-0 flex items-center px-2 text-[10px] text-muted-foreground">
-                            {f.name}
+                            {isSelected && (
+                              <div className="absolute inset-0">
+                                <div className="absolute inset-0 border-2 border-primary/80 rounded-sm" />
+                                <div className="absolute -top-12 left-0 right-0 flex justify-center pointer-events-none">
+                                  <div className="pointer-events-auto flex items-center gap-3 px-3 py-2 rounded-xl border border-border bg-card/95 shadow-lg">
+                                    <input
+                                      type="range"
+                                      min={10}
+                                      max={100}
+                                      value={Math.round(opacity * 100)}
+                                      onChange={(e) => {
+                                        const next = clamp(Number(e.target.value) / 100, 0.1, 1);
+                                        adjustOverlay("img", pageNum, img.id, { opacity: next });
+                                      }}
+                                      onPointerUp={() => onImageOverlaysCommit?.()}
+                                      className="w-28 accent-primary"
+                                      aria-label="Opacity"
+                                      title="Opacity"
+                                    />
+
+                                    <div className="h-6 w-px bg-border" />
+
+                                    <button
+                                      type="button"
+                                      className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center"
+                                      onClick={() => {
+                                        const next = ((rot - 90) % 360 + 360) % 360;
+                                        adjustOverlay("img", pageNum, img.id, { rotation: next });
+                                        onImageOverlaysCommit?.();
+                                      }}
+                                      aria-label="Rotate left"
+                                      title="Rotate left"
+                                    >
+                                      <RotateCcw className="h-5 w-5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center"
+                                      onClick={() => {
+                                        const next = ((rot + 90) % 360 + 360) % 360;
+                                        adjustOverlay("img", pageNum, img.id, { rotation: next });
+                                        onImageOverlaysCommit?.();
+                                      }}
+                                      aria-label="Rotate right"
+                                      title="Rotate right"
+                                    >
+                                      <RotateCw className="h-5 w-5" />
+                                    </button>
+
+                                    <div className="h-6 w-px bg-border" />
+
+                                    <button
+                                      type="button"
+                                      className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center"
+                                      onClick={() => deleteOverlay("img", pageNum, img.id)}
+                                      aria-label="Delete"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="h-5 w-5" />
+                                    </button>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="absolute -top-3 -right-3 h-7 w-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    deleteOverlay("img", pageNum, img.id);
+                                  }}
+                                  aria-label="Delete image"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                </button>
+
+                                {(["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const).map((h) => {
+                                  const pos: Record<string, React.CSSProperties> = {
+                                    nw: { left: -6, top: -6, cursor: "nwse-resize" },
+                                    n: { left: "50%", top: -6, transform: "translateX(-50%)", cursor: "ns-resize" },
+                                    ne: { right: -6, top: -6, cursor: "nesw-resize" },
+                                    e: { right: -6, top: "50%", transform: "translateY(-50%)", cursor: "ew-resize" },
+                                    se: { right: -6, bottom: -6, cursor: "nwse-resize" },
+                                    s: { left: "50%", bottom: -6, transform: "translateX(-50%)", cursor: "ns-resize" },
+                                    sw: { left: -6, bottom: -6, cursor: "nesw-resize" },
+                                    w: { left: -6, top: "50%", transform: "translateY(-50%)", cursor: "ew-resize" },
+                                  };
+                                  return (
+                                    <div
+                                      key={h}
+                                      style={pos[h]}
+                                      className="absolute h-3 w-3 rounded-full bg-background border border-primary shadow-sm"
+                                      onPointerDown={(e) =>
+                                        startOverlayResize(
+                                          "img",
+                                          pageNum,
+                                          img.id,
+                                          h,
+                                          e,
+                                          { x: left, y: top, width, height }
+                                        )
+                                      }
+                                      onPointerMove={(e) => onOverlayPointerMove(pageNum, layout, e)}
+                                      onPointerUp={() => finishInteraction()}
+                                      onPointerCancel={() => finishInteraction()}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
+
+                      {/* Fields (visual placeholder; actual field is embedded on export) */}
+                      {entry.fields.map((f) => {
+                        const scale = layout.baseWidth ? layout.width / layout.baseWidth : 1;
+                        const left = f.x * scale;
+                        const top = f.y * scale;
+                        const width = f.width * scale;
+                        const height = f.height * scale;
+                        const kind = f.kind ?? "text";
+                        const isDate = kind === "date";
+                        const isText = kind === "text";
+                        const isInput = isText || isDate;
+                        const isMultiline = Boolean(f.multiline) && isText;
+                        const isCheckbox = kind === "checkbox";
+                        const isRadio = kind === "radio";
+                        const isSelect = kind === "select";
+                        const isList = kind === "list";
+                        const tag = kind === "signature" ? "sign" : kind;
+                        const isSelected =
+                          canInteractOverlays &&
+                          activeOverlay?.type === "field" &&
+                          activeOverlay.id === f.id &&
+                          activeOverlay.page === pageNum;
+                        return (
+                          <div
+                            key={f.id}
+                            className="absolute"
+                            style={{
+                              left,
+                              top,
+                              width,
+                              height,
+                              pointerEvents: canInteractOverlays ? "auto" : "none",
+                              touchAction: "none",
+                            }}
+                            onPointerDown={(e) =>
+                              startOverlayDrag("field", pageNum, f.id, e, {
+                                x: left,
+                                y: top,
+                                width,
+                                height,
+                              })
+                            }
+                            onPointerMove={(e) => onOverlayPointerMove(pageNum, layout, e)}
+                            onPointerUp={() => finishInteraction()}
+                            onPointerCancel={() => finishInteraction()}
+                            onClick={(e) => {
+                              if (!canInteractOverlays) return;
+                              e.stopPropagation();
+                              setActiveOverlay({ type: "field", id: f.id, page: pageNum });
+                              setFieldOptionsOpen(null);
+                            }}
+                          >
+                            {isInput ? (
+                              isMultiline ? (
+                                <textarea
+                                  value={f.value ?? ""}
+                                  placeholder=""
+                                  readOnly={!isSelected}
+                                  className={[
+                                    "absolute inset-0 w-full h-full resize-none rounded-md border bg-white/70 px-3 py-2 text-sm text-foreground",
+                                    "focus:outline-none",
+                                    isSelected ? "border-primary/80 ring-2 ring-primary/20" : "border-primary/30",
+                                    !isSelected ? "cursor-pointer" : "cursor-text",
+                                  ].join(" ")}
+                                  onPointerDown={(e) => e.stopPropagation()}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onFocus={() => setActiveOverlay({ type: "field", id: f.id, page: pageNum })}
+                                  onChange={(e) => updateFieldOverlay(pageNum, f.id, { value: e.target.value })}
+                                  onBlur={() => onFieldOverlaysCommit?.()}
+                                />
+                              ) : (
+                                <input
+                                  value={f.value ?? ""}
+                                  type={isDate ? "date" : "text"}
+                                  placeholder={isDate ? "" : ""}
+                                  readOnly={!isSelected}
+                                  className={[
+                                    "absolute inset-0 w-full h-full rounded-md border bg-white/70 px-3 text-sm text-foreground",
+                                    "focus:outline-none",
+                                    isSelected ? "border-primary/80 ring-2 ring-primary/20" : "border-primary/30",
+                                    !isSelected ? "cursor-pointer" : "cursor-text",
+                                  ].join(" ")}
+                                  onPointerDown={(e) => e.stopPropagation()}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onFocus={() => setActiveOverlay({ type: "field", id: f.id, page: pageNum })}
+                                  onChange={(e) => updateFieldOverlay(pageNum, f.id, { value: e.target.value })}
+                                  onBlur={() => onFieldOverlaysCommit?.()}
+                                />
+                              )
+                            ) : isSelect ? (
+                              <select
+                                value={f.value ?? ""}
+                                className={[
+                                  "absolute inset-0 w-full h-full rounded-md border bg-white/70 px-3 text-sm text-foreground",
+                                  "focus:outline-none",
+                                  isSelected ? "border-primary/80 ring-2 ring-primary/20" : "border-primary/30",
+                                  !isSelected ? "cursor-pointer" : "cursor-default",
+                                ].join(" ")}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveOverlay({ type: "field", id: f.id, page: pageNum });
+                                }}
+                                onChange={(e) => {
+                                  updateFieldOverlay(pageNum, f.id, { value: e.target.value });
+                                  onFieldOverlaysCommit?.();
+                                }}
+                              >
+                                <option value="" disabled>
+                                  Select…
+                                </option>
+                                {(Array.isArray(f.options) && f.options.length > 0 ? f.options : ["Option 1", "Option 2", "Option 3"]).map(
+                                  (opt) => (
+                                    <option key={opt} value={opt}>
+                                      {opt}
+                                    </option>
+                                  )
+                                )}
+                              </select>
+                            ) : isList ? (
+                              <select
+                                multiple
+                                value={
+                                  Array.isArray(f.values) && f.values.length > 0
+                                    ? f.values
+                                    : typeof f.value === "string" && f.value
+                                      ? [f.value]
+                                      : []
+                                }
+                                size={Math.max(2, Math.min(12, Math.floor(height / 28)))}
+                                className={[
+                                  "absolute inset-0 w-full h-full rounded-md border bg-white/70 px-2 py-2 text-sm text-foreground",
+                                  "focus:outline-none",
+                                  isSelected ? "border-primary/80 ring-2 ring-primary/20" : "border-primary/30",
+                                  !isSelected ? "cursor-pointer" : "cursor-default",
+                                ].join(" ")}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveOverlay({ type: "field", id: f.id, page: pageNum });
+                                }}
+                                onChange={(e) => {
+                                  const selected = Array.from(e.currentTarget.selectedOptions).map((o) => o.value);
+                                  updateFieldOverlay(pageNum, f.id, {
+                                    values: selected,
+                                    value: selected[0] ?? "",
+                                  });
+                                }}
+                                onBlur={() => onFieldOverlaysCommit?.()}
+                              >
+                                {(Array.isArray(f.options) && f.options.length > 0 ? f.options : ["Option 1", "Option 2"]).map(
+                                  (opt) => (
+                                    <option key={opt} value={opt}>
+                                      {opt}
+                                    </option>
+                                  )
+                                )}
+                              </select>
+                            ) : isCheckbox ? (
+                              <button
+                                type="button"
+                                className={[
+                                  "absolute inset-0 w-full h-full rounded-none border bg-white/60 flex items-center justify-center",
+                                  isSelected ? "border-primary/80 ring-2 ring-primary/20" : "border-primary/40",
+                                ].join(" ")}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setActiveOverlay({ type: "field", id: f.id, page: pageNum });
+                                  updateFieldOverlay(pageNum, f.id, { checked: !f.checked });
+                                  onFieldOverlaysCommit?.();
+                                }}
+                                aria-label="Toggle checkbox"
+                                title="Checkbox"
+                              >
+                                {f.checked ? <Check className="h-5 w-5 text-primary" /> : null}
+                              </button>
+                            ) : isRadio ? (
+                              <button
+                                type="button"
+                                className={[
+                                  "absolute inset-0 w-full h-full rounded-full border bg-white/60 flex items-center justify-center",
+                                  isSelected ? "border-primary/80 ring-2 ring-primary/20" : "border-primary/40",
+                                ].join(" ")}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setActiveOverlay({ type: "field", id: f.id, page: pageNum });
+                                  toggleRadioInGroup(pageNum, f.id);
+                                }}
+                                aria-label="Toggle radio"
+                                title="Radio"
+                              >
+                                {f.checked ? <div className="h-2.5 w-2.5 rounded-full bg-primary" /> : null}
+                              </button>
+                            ) : (
+                              <>
+                                <div
+                                  className={[
+                                    "absolute inset-0 rounded-md border bg-blue-100/40",
+                                    isSelected ? "border-primary/80 ring-2 ring-primary/20" : "border-primary/30",
+                                  ].join(" ")}
+                                />
+                              </>
+                            )}
+
+                            {isSelected && (
+                              <div className="absolute inset-0 z-30">
+                                {(() => {
+                                  const isOptionsOpen =
+                                    fieldOptionsOpen?.id === f.id && fieldOptionsOpen?.page === pageNum;
+                                  return (
+                                    <>
+                                {/* Toolbar: Copy + Delete */}
+                                <div className="absolute -top-12 left-0 right-0 flex justify-center pointer-events-none">
+                                  <div className="pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card/95 shadow-lg">
+                                    <button
+                                      type="button"
+                                      className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center cursor-move"
+                                      onPointerDown={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        startOverlayDrag("field", pageNum, f.id, e as any, { x: left, y: top, width, height });
+                                      }}
+                                      aria-label="Move field"
+                                      title="Move"
+                                    >
+                                      <Move className="h-5 w-5" />
+                                    </button>
+
+                                    <div className="h-6 w-px bg-border" />
+
+                                    <button
+                                      type="button"
+                                      className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setFieldOptionsOpen((prev) => {
+                                          const next = { id: f.id, page: pageNum };
+                                          if (prev?.id === next.id && prev?.page === next.page) return null;
+                                          return next;
+                                        });
+                                      }}
+                                      aria-label="Field options"
+                                      title="Options"
+                                    >
+                                      <SlidersHorizontal className="h-5 w-5" />
+                                    </button>
+
+                                    <div className="h-6 w-px bg-border" />
+
+                                    <button
+                                      type="button"
+                                      className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        duplicateFieldOverlay(pageNum, f.id);
+                                      }}
+                                      aria-label="Duplicate field"
+                                      title="Duplicate"
+                                    >
+                                      <Copy className="h-5 w-5" />
+                                    </button>
+
+                                    <div className="h-6 w-px bg-border" />
+
+                                    <button
+                                      type="button"
+                                      className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        deleteOverlay("field", pageNum, f.id);
+                                      }}
+                                      aria-label="Delete field"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="h-5 w-5" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Select/List options editor */}
+                                {isOptionsOpen && (isSelect || isList) && (
+                                  <div
+                                    className="absolute left-0 top-full mt-4 w-[340px] rounded-2xl border border-border bg-card/95 shadow-xl p-4 pointer-events-auto"
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <div className="text-sm font-semibold text-foreground">
+                                      {isSelect ? "Select menu options" : "List menu options"}
+                                    </div>
+                                    <div className="mt-3 space-y-2">
+                                      {(Array.isArray(f.options) && f.options.length > 0
+                                        ? f.options
+                                        : isSelect
+                                          ? ["Option 1", "Option 2"]
+                                          : ["Option 1", "Option 2"]
+                                      ).map((opt, idx) => (
+                                        <div key={`${f.id}-opt-${idx}`} className="flex items-center gap-2">
+                                          <input
+                                            value={opt}
+                                            className="flex-1 h-11 rounded-xl border border-border bg-background px-3 text-sm"
+                                            onChange={(e) => {
+                                              const nextLabel = e.target.value;
+                                              const prevOptions = Array.isArray(f.options) ? f.options : [];
+                                              const nextOptions = prevOptions.slice();
+                                              // If options were missing (legacy), build from the rendered list.
+                                              if (nextOptions.length === 0) {
+                                                const base = ["Option 1", "Option 2"];
+                                                nextOptions.push(...base);
+                                              }
+                                              const old = nextOptions[idx] ?? "";
+                                              nextOptions[idx] = nextLabel;
+
+                                              // Keep selected value(s) in sync when renaming an option.
+                                              const patch: Partial<FieldOverlayWithKind> = { options: nextOptions };
+                                              if (isSelect) {
+                                                if (f.value === old) patch.value = nextLabel;
+                                              } else {
+                                                const vals = Array.isArray(f.values) ? f.values.slice() : [];
+                                                patch.values = vals.map((v) => (v === old ? nextLabel : v));
+                                                if (f.value === old) patch.value = nextLabel;
+                                              }
+                                              updateFieldOverlay(pageNum, f.id, patch);
+                                            }}
+                                            onBlur={() => onFieldOverlaysCommit?.()}
+                                          />
+                                          <button
+                                            type="button"
+                                            className="h-11 w-11 rounded-xl border border-border bg-background hover:bg-muted flex items-center justify-center"
+                                            onClick={() => {
+                                              const prevOptions = Array.isArray(f.options) ? f.options : [];
+                                              const base =
+                                                prevOptions.length > 0
+                                                  ? prevOptions
+                                                  : isSelect
+                                                    ? ["Option 1", "Option 2"]
+                                                    : ["Item 1", "Item 2"];
+                                              const nextOptions = base.filter((_, i) => i !== idx);
+                                              const removed = base[idx];
+
+                                              const patch: Partial<FieldOverlayWithKind> = { options: nextOptions };
+                                              if (isSelect) {
+                                                if (f.value === removed) patch.value = nextOptions[0] ?? "";
+                                              } else {
+                                                const vals = Array.isArray(f.values) ? f.values.filter((v) => v !== removed) : [];
+                                                patch.values = vals;
+                                                if (f.value === removed) patch.value = vals[0] ?? "";
+                                              }
+                                              updateFieldOverlay(pageNum, f.id, patch);
+                                              onFieldOverlaysCommit?.();
+                                            }}
+                                            aria-label="Delete option"
+                                            title="Delete option"
+                                          >
+                                            <Trash2 className="h-5 w-5 text-destructive" />
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      className="mt-3 h-11 rounded-xl border border-border bg-background hover:bg-muted w-full flex items-center justify-center gap-2 text-sm font-medium"
+                                      onClick={() => {
+                                        const prevOptions = Array.isArray(f.options) ? f.options : [];
+                                        const nextOptions = prevOptions.length ? prevOptions.slice() : [];
+                                        if (nextOptions.length === 0) {
+                                          nextOptions.push(...["Option 1", "Option 2"]);
+                                        }
+                                        const baseWord = "Option";
+                                        let n = nextOptions.length + 1;
+                                        let label = `${baseWord} ${n}`;
+                                        while (nextOptions.includes(label)) {
+                                          n++;
+                                          label = `${baseWord} ${n}`;
+                                        }
+                                        nextOptions.push(label);
+                                        updateFieldOverlay(pageNum, f.id, { options: nextOptions });
+                                        onFieldOverlaysCommit?.();
+                                      }}
+                                    >
+                                      <Plus className="h-4 w-4" />
+                                      Add option
+                                    </button>
+                                  </div>
+                                )}
+
+                                {/* Text field options */}
+                                {isOptionsOpen && isText && (
+                                  <div
+                                    className="absolute left-0 top-full mt-4 w-[340px] rounded-2xl border border-border bg-card/95 shadow-xl p-4 pointer-events-auto"
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <div className="flex items-center justify-between gap-4">
+                                      <div className="text-sm font-semibold text-foreground">Allow multiple lines</div>
+                                      <Switch
+                                        checked={Boolean(f.multiline)}
+                                        onCheckedChange={(checked) => {
+                                          updateFieldOverlay(pageNum, f.id, { multiline: checked });
+                                          onFieldOverlaysCommit?.();
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Radio options */}
+                                {isOptionsOpen && isRadio && (
+                                  <div
+                                    className="absolute left-0 top-full mt-4 w-[420px] rounded-2xl border border-border bg-card/95 shadow-xl p-4 pointer-events-auto"
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <div className="text-sm font-semibold text-foreground">Radio group name</div>
+                                    <input
+                                      value={f.groupName ?? ""}
+                                      placeholder="Group name"
+                                      className="mt-2 w-full h-11 rounded-xl border border-primary/40 bg-background px-3 text-sm"
+                                      onChange={(e) => updateFieldOverlay(pageNum, f.id, { groupName: e.target.value })}
+                                      onBlur={() => onFieldOverlaysCommit?.()}
+                                    />
+                                    <div className="mt-2 text-xs text-muted-foreground">
+                                      To group radio buttons together, give them the same group name.
+                                    </div>
+                                  </div>
+                                )}
+                                    </>
+                                  );
+                                })()}
+
+                                <button
+                                  type="button"
+                                  className="absolute -top-3 -right-3 h-7 w-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    deleteOverlay("field", pageNum, f.id);
+                                  }}
+                                  aria-label="Delete field"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                </button>
+
+                                {(["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const).map((h) => {
+                                  const pos: Record<string, React.CSSProperties> = {
+                                    nw: { left: -6, top: -6, cursor: "nwse-resize" },
+                                    n: { left: "50%", top: -6, transform: "translateX(-50%)", cursor: "ns-resize" },
+                                    ne: { right: -6, top: -6, cursor: "nesw-resize" },
+                                    e: { right: -6, top: "50%", transform: "translateY(-50%)", cursor: "ew-resize" },
+                                    se: { right: -6, bottom: -6, cursor: "nwse-resize" },
+                                    s: { left: "50%", bottom: -6, transform: "translateX(-50%)", cursor: "ns-resize" },
+                                    sw: { left: -6, bottom: -6, cursor: "nesw-resize" },
+                                    w: { left: -6, top: "50%", transform: "translateY(-50%)", cursor: "ew-resize" },
+                                  };
+                                  return (
+                                    <div
+                                      key={h}
+                                      style={pos[h]}
+                                      className="absolute h-3 w-3 rounded-full bg-background border border-primary shadow-sm z-30"
+                                      onPointerDown={(e) =>
+                                        startOverlayResize("field", pageNum, f.id, h, e, {
+                                          x: left,
+                                          y: top,
+                                          width,
+                                          height,
+                                        })
+                                      }
+                                      onPointerMove={(e) => onOverlayPointerMove(pageNum, layout, e)}
+                                      onPointerUp={() => finishInteraction()}
+                                      onPointerCancel={() => finishInteraction()}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
 
                       {/* Cursor hint for sign tool */}
                       {activeTool === "sign" && pendingSignature && (

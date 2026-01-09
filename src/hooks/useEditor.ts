@@ -14,9 +14,15 @@ import {
   FieldOverlay,
 } from "@/lib/pdf-utils";
 import { ToolType } from "@/components/EditorToolbar";
+import type { FieldKind } from "@/types/fields";
 
-const STORAGE_KEY = "scrixo_signature_used";
 const SIGNED_MARKER = "scrixo:signed";
+
+function getSignatureUsedKey(docId: string | undefined, file: File | null) {
+  const id = docId && docId !== "new" ? docId : "new";
+  if (!file) return `scrixo_signature_used:${id}:nofile`;
+  return `scrixo_signature_used:${id}:${file.name}:${file.size}:${file.lastModified}`;
+}
 
 export function useEditor() {
   const router = useRouter();
@@ -53,6 +59,7 @@ export function useEditor() {
   const [imageOverlays, setImageOverlays] = useState<ImageOverlay[]>([]);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [fieldOverlays, setFieldOverlays] = useState<FieldOverlay[]>([]);
+  const [fieldKind, setFieldKind] = useState<FieldKind>("text");
   
   // History State
   const [history, setHistory] = useState<
@@ -87,9 +94,6 @@ export function useEditor() {
       try {
         const { data: { user: supabaseUser } } = await supabase.auth.getUser();
         setUser(supabaseUser);
-        
-        // Track signature usage
-        setSignatureUsed(localStorage.getItem(STORAGE_KEY) === "true");
 
         const docId = params?.id as string;
         if (docId && docId !== "new") {
@@ -128,6 +132,17 @@ export function useEditor() {
     init();
   }, [params, supabase, router, setFile]);
 
+  // Track signature usage per-document (instead of globally).
+  useEffect(() => {
+    const docId = (params?.id as string) || "new";
+    const key = getSignatureUsedKey(docId, file ?? null);
+    try {
+      setSignatureUsed(localStorage.getItem(key) === "true");
+    } catch {
+      setSignatureUsed(false);
+    }
+  }, [file, params?.id]);
+
   // Detect whether the loaded PDF was previously signed in scrixo (metadata marker).
   useEffect(() => {
     let cancelled = false;
@@ -148,7 +163,12 @@ export function useEditor() {
 
         if (!cancelled && (keywordMatch || subjectMatch)) {
           setSignatureUsed(true);
-          localStorage.setItem(STORAGE_KEY, "true");
+          try {
+            const docId = (params?.id as string) || "new";
+            localStorage.setItem(getSignatureUsedKey(docId, file), "true");
+          } catch {
+            // ignore
+          }
         }
       } catch {
         // Ignore detection errors — doesn't block editor.
@@ -176,10 +196,16 @@ export function useEditor() {
   // Mark the free signature as "used" when a signature is actually placed.
   useEffect(() => {
     if (signatureUsed) return;
+    if (isPro) return;
     if (signatureOverlays.length === 0) return;
     setSignatureUsed(true);
-    localStorage.setItem(STORAGE_KEY, "true");
-  }, [signatureOverlays.length, signatureUsed]);
+    try {
+      const docId = (params?.id as string) || "new";
+      localStorage.setItem(getSignatureUsedKey(docId, file ?? null), "true");
+    } catch {
+      // ignore
+    }
+  }, [file, isPro, params?.id, signatureOverlays.length, signatureUsed]);
 
   // History Actions
   const saveToHistory = useCallback(() => {
@@ -411,12 +437,12 @@ export function useEditor() {
 
   // Tool Handlers
   const handleSignRequest = useCallback(() => {
-    if (signatureUsed) {
+    if (signatureUsed && !isPro) {
       setShowUpgradeModal(true);
     } else {
       setShowSignaturePad(true);
     }
-  }, [signatureUsed]);
+  }, [isPro, signatureUsed]);
 
   const handleSignatureSave = useCallback((signatureData: string) => {
     setPendingSignature(signatureData);
@@ -450,6 +476,7 @@ export function useEditor() {
     imageOverlays,
     pendingImage,
     fieldOverlays,
+    fieldKind,
     historyIndex,
     historyLength: history.length,
     signatureUsed,
@@ -470,6 +497,7 @@ export function useEditor() {
     setImageOverlays,
     setPendingImage,
     setFieldOverlays,
+    setFieldKind,
     setShowSignaturePad,
     setShowUpgradeModal,
     
