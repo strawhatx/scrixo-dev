@@ -43,13 +43,13 @@ export default function Dashboard() {
                         </Link>
                     </Button>
                     <div className="h-4 w-[1px] bg-border mx-1" />
-                    <Button
+                    {/*<Button
                         variant="ghost"
                         className="text-muted-foreground hover:text-foreground text-xs font-bold uppercase tracking-tight h-8 px-3"
                         onClick={activeUser.isFree ? signIn : signOut}
                     >
                         {activeUser.isFree ? "Log In" : "Log Out"}
-                    </Button>
+                    </Button>*/}
                 </div>
 
                 {/* Logo Section */}
@@ -90,8 +90,6 @@ export default function Dashboard() {
                         />
                     </div>
                 </div>
-
-                {/* Footer Icon Row */}
             </main>
 
             {/* Vertical Ad Space */}
