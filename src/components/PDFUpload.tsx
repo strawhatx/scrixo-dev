@@ -128,31 +128,26 @@ function MinimalUploadView({
   triggerPicker
 }: PDFUploadProps & ReturnType<typeof useFileHandlers>) {
   return (
-    <div
+    <div 
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      onClick={triggerPicker}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          triggerPicker();
+        }
+      }}
       className={cn(
-        "w-full rounded-3xl border-2 border-dashed border-border/60 bg-muted/10 p-5 sm:p-6",
+        "w-full h-full relative overflow-hidden rounded-2xl border transition-all duration-300",
+        "bg-background cursor-pointer select-none shadow-sm",
+        isDragging ? "border-[#ff5a3c]/60 ring-4 ring-[#ff5a3c]/10" : "border-border/60",
         className
       )}
     >
-      <div 
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={triggerPicker}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            triggerPicker();
-          }
-        }}
-        className={cn(
-          "w-full h-full relative overflow-hidden rounded-2xl border transition-all duration-300",
-          "bg-background cursor-pointer select-none shadow-sm",
-          isDragging ? "border-[#ff5a3c]/60 ring-4 ring-[#ff5a3c]/10" : "border-border/60"
-        )}
-      >
         <input
           id={inputId}
           type="file"
@@ -203,7 +198,6 @@ function MinimalUploadView({
           </div>
         </div>
       </div>
-    </div>
   );
 }
 
