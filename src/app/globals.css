@@ -2,9 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* PDFOtter Design System - Teal/Ocean Theme */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+/* Scrixo Design System - Teal/Ocean Theme */
 
 @layer base {
   :root {
@@ -175,6 +173,26 @@
 /* PDF Canvas styles */
 .pdf-canvas {
   @apply shadow-lg rounded-lg;
+}
+
+/* PDF.js-style text layer (used by the Select tool for copy/paste selection) */
+.pdf-text-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.pdf-text-layer span {
+  position: absolute;
+  white-space: pre;
+  line-height: 1;
+  color: transparent;
+}
+
+.pdf-text-layer ::selection {
+  background: rgba(59, 130, 246, 0.35);
 }
 
 /* Signature pad styles */

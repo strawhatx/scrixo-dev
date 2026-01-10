@@ -1,7 +1,9 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { 
-  MousePointer2, 
-  Type, 
+  MousePointer2,
   PenLine, 
   Pencil,
   ImageIcon,
@@ -11,40 +13,35 @@ import {
   LayoutGrid,
   RotateCw,
   MoreHorizontal,
-  Download, 
   Undo2, 
   Redo2,
   Minus,
   Plus,
   Search,
-  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
-export type ToolType = "select" | "text" | "sign" | "draw" | "image" | "field" | "merge" | "split" | "rearrange" | "rotate" | "more";
+export type ToolType =
+  | "select"
+  | "sign"
+  | "draw"
+  | "image"
+  | "field"
+  | "merge"
+  | "split"
+  | "rearrange"
+  | "rotate"
+  | "more";
 
 interface EditorToolbarProps {
   activeTool: ToolType;
   onToolChange: (tool: ToolType) => void;
-  onDownload: () => void;
-  onUndo: () => void;
-  onRedo: () => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onPrevPage: () => void;
-  onNextPage: () => void;
-  currentPage: number;
-  totalPages: number;
-  zoom: number;
-  canUndo: boolean;
-  canRedo: boolean;
-  signatureUsed: boolean;
+  isPro?: boolean;
 }
 
 const tools = [
   { id: "select" as ToolType, icon: MousePointer2, label: "Select" },
-  { id: "text" as ToolType, icon: Type, label: "Text" },
   { id: "sign" as ToolType, icon: PenLine, label: "Sign" },
   { id: "draw" as ToolType, icon: Pencil, label: "Draw" },
   { id: "image" as ToolType, icon: ImageIcon, label: "Image" },
@@ -62,18 +59,10 @@ const actions = [
 export function EditorToolbar({
   activeTool,
   onToolChange,
-  onDownload,
-  onUndo,
-  onRedo,
-  onZoomIn,
-  onZoomOut,
-  zoom,
-  canUndo,
-  canRedo,
+  isPro = false,
 }: EditorToolbarProps) {
   return (
     <div className="flex items-center justify-between bg-card border-b border-border px-4 py-1">
-      {/* Left: Tools with icons and labels */}
       <div className="flex items-center">
         {tools.map((tool) => (
           <button
@@ -93,13 +82,17 @@ export function EditorToolbar({
         <Separator orientation="vertical" className="h-10 mx-2" />
         
         {actions.map((action) => (
+          // Advanced actions are Pro-only for now.
           <button
             key={action.id}
             onClick={() => onToolChange(action.id)}
+            disabled={!isPro}
             className={`flex flex-col items-center justify-center px-3 py-1 rounded-lg transition-colors min-w-[48px] ${
-              activeTool === action.id
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              !isPro
+                ? "opacity-40 cursor-not-allowed text-muted-foreground"
+                : activeTool === action.id
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
             <action.icon className="w-5 h-5 mb-0.5" />
@@ -108,73 +101,86 @@ export function EditorToolbar({
         ))}
       </div>
 
-      {/* Right: Undo/Redo, Zoom, User, Share, Download */}
       <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onUndo}
-          disabled={!canUndo}
-          className="w-8 h-8"
-        >
-          <Undo2 className="w-4 h-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onRedo}
-          disabled={!canRedo}
-          className="w-8 h-8"
-        >
-          <Redo2 className="w-4 h-4" />
-        </Button>
-        
-        <Separator orientation="vertical" className="h-6 mx-2" />
-        
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onZoomOut}
-          disabled={zoom <= 50}
-          className="w-8 h-8"
-        >
-          <Minus className="w-4 h-4" />
-        </Button>
-        <span className="text-sm font-medium text-foreground w-12 text-center">
-          {zoom}%
-        </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onZoomIn}
-          disabled={zoom >= 200}
-          className="w-8 h-8"
-        >
-          <Plus className="w-4 h-4" />
-        </Button>
-        
-        <Separator orientation="vertical" className="h-6 mx-2" />
-        
         <Button variant="ghost" size="icon" className="w-8 h-8">
           <Search className="w-4 h-4" />
-        </Button>
-        
-        <Button variant="ghost" size="icon" className="w-8 h-8">
-          <User className="w-4 h-4" />
-        </Button>
-        
-        <Button variant="outline" size="sm" className="h-8 px-4">
-          Share
-        </Button>
-        
-        <Button 
-          onClick={onDownload} 
-          className="gap-2 h-8 px-4 bg-foreground text-background hover:bg-foreground/90"
-        >
-          <Download className="w-4 h-4" />
-          Download
         </Button>
       </div>
     </div>
   );
+}
+
+export function EditorFloatingControls({
+  onUndo,
+  onRedo,
+  onZoomIn,
+  onZoomOut,
+  zoom,
+  canUndo,
+  canRedo,
+}: {
+  onUndo: () => void;
+  onRedo: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  zoom: number;
+  canUndo: boolean;
+  canRedo: boolean;
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const content = useMemo(() => {
+  return (
+      <div className="pointer-events-none fixed inset-x-0 bottom-4 pb-[env(safe-area-inset-bottom)] flex justify-center z-[60]">
+        <div className="pointer-events-auto flex items-center gap-1 bg-card/80 backdrop-blur-md border border-border shadow-lg rounded-full px-2 py-1">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onUndo}
+        disabled={!canUndo}
+        className="w-9 h-9"
+      >
+        <Undo2 className="w-4 h-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onRedo}
+        disabled={!canRedo}
+        className="w-9 h-9"
+      >
+        <Redo2 className="w-4 h-4" />
+      </Button>
+
+      <Separator orientation="vertical" className="h-6 mx-1" />
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onZoomOut}
+        disabled={zoom <= 50}
+        className="w-9 h-9"
+      >
+        <Minus className="w-4 h-4" />
+      </Button>
+      <span className="text-sm font-semibold text-foreground w-12 text-center tabular-nums">
+        {zoom}%
+      </span>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onZoomIn}
+        disabled={zoom >= 200}
+        className="w-9 h-9"
+      >
+        <Plus className="w-4 h-4" />
+      </Button>
+        </div>
+    </div>
+  );
+  }, [canRedo, canUndo, onRedo, onUndo, onZoomIn, onZoomOut, zoom]);
+
+  if (!mounted) return null;
+  return createPortal(content, document.body);
 }
