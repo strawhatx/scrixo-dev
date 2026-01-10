@@ -175,6 +175,7 @@
   @apply shadow-lg rounded-lg;
 }
 
+
 /* PDF.js-style text layer (used by the Select tool for copy/paste selection) */
 .pdf-text-layer {
   position: absolute;

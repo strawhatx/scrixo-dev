@@ -9,6 +9,7 @@ create table if not exists public.signatures (
   created_at timestamptz not null default now()
 );
 
+
 alter table public.signatures enable row level security;
 
 -- Users can read their own signatures
