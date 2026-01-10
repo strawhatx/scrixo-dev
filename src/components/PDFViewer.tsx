@@ -291,6 +291,7 @@ export function PDFViewer(props: PDFViewerProps) {
 
   const canInteractOverlays =
     activeTool === "select" || activeTool === "sign" || activeTool === "image" || activeTool === "field";
+  const canEditFieldStructure = activeTool === "field";
   const [activeOverlay, setActiveOverlay] = useState<
     { type: "sig" | "img" | "field"; id: string; page: number } | null
   >(null);
@@ -310,6 +311,23 @@ export function PDFViewer(props: PDFViewerProps) {
     handle?: "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
     changed: boolean;
   } | null>(null);
+
+  // Auto-close field option menus whenever selection changes (prevents "menus showing up" unexpectedly).
+  useEffect(() => {
+    if (!fieldOptionsOpen) return;
+    if (!activeOverlay || activeOverlay.type !== "field") {
+      setFieldOptionsOpen(null);
+      return;
+    }
+    if (fieldOptionsOpen.id !== activeOverlay.id || fieldOptionsOpen.page !== activeOverlay.page) {
+      setFieldOptionsOpen(null);
+    }
+  }, [activeOverlay, fieldOptionsOpen]);
+
+  useEffect(() => {
+    // Options menus are for field-structure editing; close them outside Field tool.
+    if (!canEditFieldStructure && fieldOptionsOpen) setFieldOptionsOpen(null);
+  }, [canEditFieldStructure, fieldOptionsOpen]);
 
   const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
@@ -1301,6 +1319,14 @@ export function PDFViewer(props: PDFViewerProps) {
         className="flex-1 min-h-0 w-full overflow-auto outline-none"
         tabIndex={0}
         onScroll={handleScroll}
+        onPointerDownCapture={(e) => {
+          // Clicking outside the PDF pages should clear any selection/options.
+          if (!canInteractOverlays) return;
+          const t = e.target as HTMLElement | null;
+          if (t?.closest?.('[data-page-container="true"]')) return;
+          setActiveOverlay(null);
+          setFieldOptionsOpen(null);
+        }}
       >
         <div className="min-w-full flex flex-col items-center gap-10 p-6 pb-28">
           {pageLayouts.length === 0 ? (
@@ -1325,6 +1351,7 @@ export function PDFViewer(props: PDFViewerProps) {
                   return (
                     <div
                       key={pageNum}
+                      data-page-container="true"
                       ref={(el) => {
                         if (el) pageContainerRefs.current.set(pageNum, el);
                         else pageContainerRefs.current.delete(pageNum);
@@ -1355,8 +1382,13 @@ export function PDFViewer(props: PDFViewerProps) {
                         const y = e.clientY - rect.top;
                         placeFieldAt(pageNum, x, y, kind);
                       }}
-                      onPointerDown={(e) => {
-                        if (canInteractOverlays && e.target === e.currentTarget) setActiveOverlay(null);
+                      onPointerDownCapture={(e) => {
+                        // Click anywhere on the page that isn't an overlay should clear selection.
+                        if (!canInteractOverlays) return;
+                        const t = e.target as HTMLElement | null;
+                        if (t?.closest?.('[data-overlay-root="true"]')) return;
+                        setActiveOverlay(null);
+                        setFieldOptionsOpen(null);
                       }}
                       onClick={(e) => handlePageClick(pageNum, e)}
                     >
@@ -1421,7 +1453,9 @@ export function PDFViewer(props: PDFViewerProps) {
                           activeOverlay.page === pageNum;
                         return (
                           <div
-                          key={sig.id}
+                            key={sig.id}
+                            data-overlay-root="true"
+                            data-overlay-type="sig"
                             className="absolute"
                             style={{
                               left,
@@ -1589,7 +1623,9 @@ export function PDFViewer(props: PDFViewerProps) {
                           activeOverlay.page === pageNum;
                         return (
                           <div
-                          key={img.id}
+                            key={img.id}
+                            data-overlay-root="true"
+                            data-overlay-type="img"
                             className="absolute"
                             style={{
                               left,
@@ -1755,6 +1791,7 @@ export function PDFViewer(props: PDFViewerProps) {
                         const isRadio = kind === "radio";
                         const isSelect = kind === "select";
                         const isList = kind === "list";
+                        const hasOptionsMenu = isSelect || isList || isText || isRadio;
                         const tag = kind === "signature" ? "sign" : kind;
                         const isSelected =
                           canInteractOverlays &&
@@ -1764,6 +1801,8 @@ export function PDFViewer(props: PDFViewerProps) {
                         return (
                           <div
                             key={f.id}
+                            data-overlay-root="true"
+                            data-overlay-type="field"
                             className="absolute"
                             style={{
                               left,
@@ -1773,14 +1812,12 @@ export function PDFViewer(props: PDFViewerProps) {
                               pointerEvents: canInteractOverlays ? "auto" : "none",
                               touchAction: "none",
                             }}
-                            onPointerDown={(e) =>
-                              startOverlayDrag("field", pageNum, f.id, e, {
-                                x: left,
-                                y: top,
-                                width,
-                                height,
-                              })
-                            }
+                            onPointerDown={(e) => {
+                              // In Select tool, fields should be fillable but not movable.
+                              if (!canInteractOverlays) return;
+                              if (!canEditFieldStructure) return;
+                              startOverlayDrag("field", pageNum, f.id, e, { x: left, y: top, width, height });
+                            }}
                             onPointerMove={(e) => onOverlayPointerMove(pageNum, layout, e)}
                             onPointerUp={() => finishInteraction()}
                             onPointerCancel={() => finishInteraction()}
@@ -1788,7 +1825,6 @@ export function PDFViewer(props: PDFViewerProps) {
                               if (!canInteractOverlays) return;
                               e.stopPropagation();
                               setActiveOverlay({ type: "field", id: f.id, page: pageNum });
-                              setFieldOptionsOpen(null);
                             }}
                           >
                             {isInput ? (
@@ -1796,7 +1832,7 @@ export function PDFViewer(props: PDFViewerProps) {
                                 <textarea
                                   value={f.value ?? ""}
                                   placeholder=""
-                                  readOnly={!isSelected}
+                                  readOnly={canEditFieldStructure ? !isSelected : false}
                                   className={[
                                     "absolute inset-0 w-full h-full resize-none rounded-md border bg-white/70 px-3 py-2 text-sm text-foreground",
                                     "focus:outline-none",
@@ -1814,7 +1850,7 @@ export function PDFViewer(props: PDFViewerProps) {
                                   value={f.value ?? ""}
                                   type={isDate ? "date" : "text"}
                                   placeholder={isDate ? "" : ""}
-                                  readOnly={!isSelected}
+                                  readOnly={canEditFieldStructure ? !isSelected : false}
                                   className={[
                                     "absolute inset-0 w-full h-full rounded-md border bg-white/70 px-3 text-sm text-foreground",
                                     "focus:outline-none",
@@ -1952,6 +1988,7 @@ export function PDFViewer(props: PDFViewerProps) {
                                 {(() => {
                                   const isOptionsOpen =
                                     fieldOptionsOpen?.id === f.id && fieldOptionsOpen?.page === pageNum;
+                                  if (!canEditFieldStructure) return null;
                                   return (
                                     <>
                                 {/* Toolbar: Copy + Delete */}
@@ -1973,29 +2010,40 @@ export function PDFViewer(props: PDFViewerProps) {
 
                                     <div className="h-6 w-px bg-border" />
 
+                                    {hasOptionsMenu && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center"
+                                          onPointerDown={(e) => {
+                                            // Prevent the underlying field overlay from interpreting this as a drag start.
+                                            e.stopPropagation();
+                                          }}
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setFieldOptionsOpen((prev) => {
+                                              const next = { id: f.id, page: pageNum };
+                                              if (prev?.id === next.id && prev?.page === next.page) return null;
+                                              return next;
+                                            });
+                                          }}
+                                          aria-label="Field options"
+                                          title="Options"
+                                        >
+                                          <SlidersHorizontal className="h-5 w-5" />
+                                        </button>
+
+                                        <div className="h-6 w-px bg-border" />
+                                      </>
+                                    )}
+
                                     <button
                                       type="button"
                                       className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center"
-                                      onClick={(e) => {
-                                        e.preventDefault();
+                                      onPointerDown={(e) => {
                                         e.stopPropagation();
-                                        setFieldOptionsOpen((prev) => {
-                                          const next = { id: f.id, page: pageNum };
-                                          if (prev?.id === next.id && prev?.page === next.page) return null;
-                                          return next;
-                                        });
                                       }}
-                                      aria-label="Field options"
-                                      title="Options"
-                                    >
-                                      <SlidersHorizontal className="h-5 w-5" />
-                                    </button>
-
-                                    <div className="h-6 w-px bg-border" />
-
-                                    <button
-                                      type="button"
-                                      className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center"
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
@@ -2012,6 +2060,9 @@ export function PDFViewer(props: PDFViewerProps) {
                                     <button
                                       type="button"
                                       className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center"
+                                      onPointerDown={(e) => {
+                                        e.stopPropagation();
+                                      }}
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
@@ -2081,7 +2132,7 @@ export function PDFViewer(props: PDFViewerProps) {
                                                   ? prevOptions
                                                   : isSelect
                                                     ? ["Option 1", "Option 2"]
-                                                    : ["Item 1", "Item 2"];
+                                                    : ["Option 1", "Option 2"];
                                               const nextOptions = base.filter((_, i) => i !== idx);
                                               const removed = base[idx];
 
