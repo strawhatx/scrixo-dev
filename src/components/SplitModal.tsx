@@ -102,7 +102,7 @@ export function SplitModal({ isOpen, onClose, onSplit, currentPage, totalPages }
                   </div>
                 </div>
 
-                {totalPages <= 3 && (
+                {totalPages <= 2 && (
                   <div className="flex items-start space-x-3 p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
                     <RadioGroupItem value="all" id="all" className="mt-0.5" />
                     <div className="flex-1">
@@ -117,10 +117,10 @@ export function SplitModal({ isOpen, onClose, onSplit, currentPage, totalPages }
                 )}
               </RadioGroup>
 
-              {totalPages > 3 && (
+              {totalPages > 2 && (
                 <div className="bg-muted/30 rounded-lg p-4 border border-border">
                   <p className="text-xs text-muted-foreground">
-                    <strong className="text-foreground">Note:</strong> Split all pages is only available for PDFs with 3 pages or fewer. This PDF has {totalPages} pages. Use "Current Page Only" to split individual pages.
+                    <strong className="text-foreground">Note:</strong> Split all pages is only available for PDFs with 2 pages or fewer. This PDF has {totalPages} pages. Use "Current Page Only" to split individual pages.
                   </p>
                 </div>
               )}

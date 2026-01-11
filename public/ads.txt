@@ -1,0 +1,4 @@
+# ads.txt file for AdSense authorization
+# This file must be accessible at your domain root: https://scrixo.com/ads.txt
+google.com, pub-6117588691065617, DIRECT, f08c47fec0942fa0
+

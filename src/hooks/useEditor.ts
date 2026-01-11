@@ -17,13 +17,6 @@ import { ToolType } from "@/components/EditorToolbar";
 import type { FieldKind } from "@/types/fields";
 import { checkRateLimit, recordRateLimit } from "@/lib/rate-limiter";
 
-const SIGNED_MARKER = "scrixo:signed";
-
-function getSignatureUsedKey(docId: string | undefined, file: File | null) {
-  const id = docId && docId !== "new" ? docId : "new";
-  if (!file) return `scrixo_signature_used:${id}:nofile`;
-  return `scrixo_signature_used:${id}:${file.name}:${file.size}:${file.lastModified}`;
-}
 
 export function useEditor() {
   const router = useRouter();
@@ -83,8 +76,6 @@ export function useEditor() {
   const [showRotateModal, setShowRotateModal] = useState(false);
   const [showRearrangeModal, setShowRearrangeModal] = useState(false);
   
-  // Freemium tracking
-  const [signatureUsed, setSignatureUsed] = useState(false);
 
   // Subscription (lightweight for now; can be wired to real billing later)
   const isPro = Boolean(
@@ -137,54 +128,11 @@ export function useEditor() {
     init();
   }, [params, supabase, router, setFile]);
 
-  // Track signature usage per-document (instead of globally).
-  useEffect(() => {
-    const docId = (params?.id as string) || "new";
-    const key = getSignatureUsedKey(docId, file ?? null);
-    try {
-      setSignatureUsed(localStorage.getItem(key) === "true");
-    } catch {
-      setSignatureUsed(false);
-    }
-  }, [file, params?.id]);
+  // Track signature count (max 2 for free users)
+  const MAX_SIGNATURES_FREE = 2;
+  const signatureCount = signatureOverlays.length;
+  const canAddSignature = isPro || signatureCount < MAX_SIGNATURES_FREE;
 
-  // Detect whether the loaded PDF was previously signed in scrixo (metadata marker).
-  useEffect(() => {
-    let cancelled = false;
-    const detect = async () => {
-      if (!file) return;
-      try {
-        const bytes = await file.arrayBuffer();
-        const doc: any = await PDFDocument.load(bytes);
-
-        const keywords: unknown =
-          typeof doc.getKeywords === "function" ? doc.getKeywords() : undefined;
-        const subject: unknown =
-          typeof doc.getSubject === "function" ? doc.getSubject() : undefined;
-
-        const keywordMatch =
-          Array.isArray(keywords) && keywords.some((k) => String(k).includes(SIGNED_MARKER));
-        const subjectMatch = typeof subject === "string" && subject.includes(SIGNED_MARKER);
-
-        if (!cancelled && (keywordMatch || subjectMatch)) {
-          setSignatureUsed(true);
-          try {
-            const docId = (params?.id as string) || "new";
-            localStorage.setItem(getSignatureUsedKey(docId, file), "true");
-          } catch {
-            // ignore
-          }
-        }
-      } catch {
-        // Ignore detection errors — doesn't block editor.
-      }
-    };
-
-    detect();
-    return () => {
-      cancelled = true;
-    };
-  }, [file]);
 
   // Keep pageOrder in sync with the loaded PDF page count.
   // If pageOrder is empty (fresh load) or mismatched, reset to natural order.
@@ -206,20 +154,6 @@ export function useEditor() {
     // Ensure currentPage is always valid.
     setCurrentPage((p) => Math.min(Math.max(1, p), totalPages));
   }, [totalPages, router]);
-
-  // Mark the free signature as "used" when a signature is actually placed.
-  useEffect(() => {
-    if (signatureUsed) return;
-    if (isPro) return;
-    if (signatureOverlays.length === 0) return;
-    setSignatureUsed(true);
-    try {
-      const docId = (params?.id as string) || "new";
-      localStorage.setItem(getSignatureUsedKey(docId, file ?? null), "true");
-    } catch {
-      // ignore
-    }
-  }, [file, isPro, params?.id, signatureOverlays.length, signatureUsed]);
 
   // History Actions
   const saveToHistory = useCallback(() => {
@@ -523,8 +457,8 @@ export function useEditor() {
         toast.dismiss(loadingToast);
         toast.success("Split downloaded!");
       } else {
-        // Split all pages (max 3 pages)
-        const MAX_SPLIT_PAGES = 3;
+        // Split all pages (max 2 pages)
+        const MAX_SPLIT_PAGES = 2;
         if (pageCount > MAX_SPLIT_PAGES) {
           toast.dismiss(loadingToast);
           toast.error(`Cannot split more than ${MAX_SPLIT_PAGES} pages. This PDF has ${pageCount} pages.`);
@@ -561,12 +495,12 @@ export function useEditor() {
 
   // Tool Handlers
   const handleSignRequest = useCallback(() => {
-    if (signatureUsed && !isPro) {
+    if (!canAddSignature) {
       setShowUpgradeModal(true);
     } else {
       setShowSignaturePad(true);
     }
-  }, [isPro, signatureUsed]);
+  }, [canAddSignature]);
 
   const handleSignatureSave = useCallback((signatureData: string) => {
     setPendingSignature(signatureData);
@@ -603,7 +537,8 @@ export function useEditor() {
     fieldKind,
     historyIndex,
     historyLength: history.length,
-    signatureUsed,
+    signatureCount,
+    canAddSignature,
     showSignaturePad,
     showUpgradeModal,
     showMergeModal,
