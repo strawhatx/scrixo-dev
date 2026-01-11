@@ -10,6 +10,7 @@ import { UpgradeModal } from "@/components/UpgradeModal";
 import { Button } from "@/components/ui/button";
 import { DrawToolsPanel } from "@/components/DrawToolsPanel";
 import { FieldsPanel } from "@/components/FieldsPanel";
+import { AdSidebar } from "@/components/AdSidebar";
 
 /**
  * Staff-Level Editor Component
@@ -39,7 +40,7 @@ export default function Editor() {
   return (
     <div
       className={[
-        "h-dvh bg-background text-foreground flex overflow-hidden font-sans",
+        "h-dvh bg-background text-foreground flex flex-col xl:flex-row overflow-hidden font-sans",
         editor.activeTool === "select" ? "select-text" : "select-none",
       ].join(" ")}
     >
@@ -188,23 +189,7 @@ export default function Editor() {
         />
       </main>
 
-      {/* Vertical Ad Space */}
-      <aside className="w-[300px] bg-muted/30 border-l border-border hidden xl:flex xl:flex-col shrink-0 min-h-0 overflow-hidden">
-        <div className="p-4 border-b border-border flex items-center justify-between">
-          <span className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">Advertisement</span>
-          <Search className="w-3 h-3 text-muted-foreground/20" />
-        </div>
-        <div className="flex-1 p-4 min-h-0 overflow-hidden">
-          <div className="w-full h-full bg-background rounded-xl border border-dashed border-border flex flex-col items-center justify-center gap-4 text-muted-foreground/20 italic">
-            <div className="text-center space-y-1">
-              <p className="text-sm font-medium">Ad Space</p>
-              <p className="text-[10px] font-bold">300 x 600</p>
-            </div>
-            <div className="w-40 h-40 bg-primary/5 rounded-full blur-3xl animate-pulse" />
-          </div>
-        </div>
-      </aside>
-
+      <AdSidebar />
     </div>
   );
 }
