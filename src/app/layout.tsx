@@ -111,14 +111,15 @@ export default function RootLayout({
           "font-sans antialiased bg-background text-foreground",
         ].join(" ")}
       >
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-7YQZ2YJ946"></script>
+
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-N78CJW97VM"></script>
         <script
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
-              gtag('config', 'G-7YQZ2YJ946');
+              gtag('config', 'G-N78CJW97VM');
             `,
           }}
         />
