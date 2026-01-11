@@ -111,17 +111,17 @@ export default function RootLayout({
           "font-sans antialiased bg-background text-foreground",
         ].join(" ")}
       >
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-N78CJW97VM"
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-N78CJW97VM"></script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-N78CJW97VM');
+            `,
+          }}
         />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-N78CJW97VM');
-          `}
-        </Script>
         <Providers>{children}</Providers>
       </body>
     </html>
