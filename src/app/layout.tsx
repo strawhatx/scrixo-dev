@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import {
   Cedarville_Cursive,
   Dawning_of_a_New_Day,
@@ -79,7 +80,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{ children: React.ReactNode;}>) {
+}: Readonly<{ children: React.ReactNode; }>) {
   return (
     <html lang="en">
       <head>
@@ -110,6 +111,17 @@ export default function RootLayout({
           "font-sans antialiased bg-background text-foreground",
         ].join(" ")}
       >
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-N78CJW97VM"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-N78CJW97VM');
+          `}
+        </Script>
         <Providers>{children}</Providers>
       </body>
     </html>
