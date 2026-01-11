@@ -156,7 +156,7 @@ function PagesSidebar({
                   </div>
                 </div>
                 <div className="px-2 py-1 flex items-center justify-between">
-                  <span className="text-[10px] font-semibold text-foreground">{pageNum}</span>
+                  <span className="text-[10px] font-semibold text-foreground">{idx + 1}</span>
                   {isActive && <span className="text-[10px] font-bold text-primary">•</span>}
                 </div>
               </button>
@@ -1301,15 +1301,7 @@ export function PDFViewer(props: PDFViewerProps) {
         pagesListRef={pagesListRef}
         onGoToPage={handleGoToPage}
         thumbnailsByPage={pageThumbs}
-        rearrangeEnabled={activeTool === "rearrange"}
-        onMovePage={(from, to) => {
-          if (!onPageOrderChange) return;
-          const next = pageNumbers.slice();
-          if (from < 0 || to < 0 || from >= next.length || to >= next.length) return;
-          const [moved] = next.splice(from, 1);
-          next.splice(to, 0, moved);
-          onPageOrderChange(next);
-        }}
+        rearrangeEnabled={false}
       />
 
       {dockPanel}

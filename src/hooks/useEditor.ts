@@ -15,6 +15,7 @@ import {
 } from "@/lib/pdf-utils";
 import { ToolType } from "@/components/EditorToolbar";
 import type { FieldKind } from "@/types/fields";
+import { checkRateLimit, recordRateLimit } from "@/lib/rate-limiter";
 
 const SIGNED_MARKER = "scrixo:signed";
 
@@ -77,6 +78,10 @@ export function useEditor() {
   // Modal State
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [showSplitModal, setShowSplitModal] = useState(false);
+  const [showRotateModal, setShowRotateModal] = useState(false);
+  const [showRearrangeModal, setShowRearrangeModal] = useState(false);
   
   // Freemium tracking
   const [signatureUsed, setSignatureUsed] = useState(false);
@@ -185,13 +190,22 @@ export function useEditor() {
   // If pageOrder is empty (fresh load) or mismatched, reset to natural order.
   useEffect(() => {
     if (!totalPages || totalPages < 1) return;
+    
+    // Validate page count (max 20 pages)
+    const MAX_PAGES = 20;
+    if (totalPages > MAX_PAGES) {
+      toast.error(`PDF exceeds the maximum of ${MAX_PAGES} pages. Please use a PDF with ${MAX_PAGES} pages or fewer.`);
+      router.push("/");
+      return;
+    }
+    
     setPageOrder((prev) => {
       if (prev.length === totalPages) return prev;
       return Array.from({ length: totalPages }, (_, i) => i + 1);
     });
     // Ensure currentPage is always valid.
     setCurrentPage((p) => Math.min(Math.max(1, p), totalPages));
-  }, [totalPages]);
+  }, [totalPages, router]);
 
   // Mark the free signature as "used" when a signature is actually placed.
   useEffect(() => {
@@ -342,13 +356,21 @@ export function useEditor() {
   }, [drawStrokes, fieldOverlays, file, imageOverlays, isPro, pageOrder, pageRotations, signatureOverlays]);
 
   // Page Operations
-  const rotatePage = useCallback((pageNum: number, delta: number = 90) => {
+  const rotatePage = useCallback(async (delta: number = 90) => {
+    const rateLimitCheck = checkRateLimit("rotate");
+    if (!rateLimitCheck.allowed) {
+      toast.error(rateLimitCheck.message || "Rate limit exceeded. Please wait before rotating again.");
+      return;
+    }
+    
+    recordRateLimit("rotate");
     setPageRotations((prev) => {
-      const curr = prev[pageNum] ?? 0;
+      const curr = prev[currentPage] ?? 0;
       const next = ((curr + delta) % 360 + 360) % 360;
-      return { ...prev, [pageNum]: next };
+      return { ...prev, [currentPage]: next };
     });
-  }, []);
+    saveToHistory();
+  }, [currentPage, saveToHistory]);
 
   const movePageInOrder = useCallback((fromIndex: number, toIndex: number) => {
     setPageOrder((prev) => {
@@ -370,11 +392,54 @@ export function useEditor() {
     async (filesToMerge: File[]) => {
       if (!file) return;
       if (!filesToMerge.length) return;
+
+      // Rate limiting check
+      const rateLimitCheck = checkRateLimit("merge");
+      if (!rateLimitCheck.allowed) {
+        toast.error(rateLimitCheck.message || "Rate limit exceeded. Please wait before merging again.");
+        return;
+      }
+
+      // Validate max files per merge (max 3)
+      if (filesToMerge.length > 3) {
+        toast.error("Maximum 3 files can be merged at once.");
+        return;
+      }
+
+      // Validate file sizes (max 25MB per file)
+      const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25MB
+      const allFiles = [file, ...filesToMerge];
+      for (const f of allFiles) {
+        if (f.size > MAX_FILE_SIZE_BYTES) {
+          toast.error(`File "${f.name}" exceeds the 25MB size limit.`);
+          return;
+        }
+      }
+
       const loadingToast = toast.loading("Merging PDFs...");
       try {
+        // Validate page counts (max 20 pages total)
+        const MAX_PAGES = 20;
+        let totalPages = 0;
+        
         const baseBytes = await file.arrayBuffer();
-        const outDoc = await PDFDocument.create();
         const baseDoc = await PDFDocument.load(baseBytes);
+        totalPages += baseDoc.getPageCount();
+
+        for (const f of filesToMerge) {
+          const bytes = await f.arrayBuffer();
+          const doc = await PDFDocument.load(bytes);
+          totalPages += doc.getPageCount();
+        }
+
+        if (totalPages > MAX_PAGES) {
+          toast.dismiss(loadingToast);
+          toast.error(`Total page count (${totalPages}) exceeds the maximum of ${MAX_PAGES} pages.`);
+          return;
+        }
+
+        // Proceed with merge
+        const outDoc = await PDFDocument.create();
         const basePages = await outDoc.copyPages(baseDoc, baseDoc.getPageIndices());
         basePages.forEach((p) => outDoc.addPage(p));
 
@@ -399,6 +464,7 @@ export function useEditor() {
         setHistory([]);
         setHistoryIndex(-1);
         setPageRotations({});
+        recordRateLimit("merge");
         toast.dismiss(loadingToast);
         toast.success("Merged!");
       } catch (err: any) {
@@ -409,26 +475,77 @@ export function useEditor() {
     [file, setFile]
   );
 
-  const splitCurrentPageToDownload = useCallback(async () => {
+  const splitCurrentPageToDownload = useCallback(async (option: "current" | "all" = "current") => {
     if (!file) return;
-    const loadingToast = toast.loading("Preparing split PDF...");
+
+    // Rate limiting check
+    const rateLimitCheck = checkRateLimit("split");
+    if (!rateLimitCheck.allowed) {
+      toast.error(rateLimitCheck.message || "Rate limit exceeded. Please wait before splitting again.");
+      return;
+    }
+
+    // Validate file size (max 25MB)
+    const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25MB
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      toast.error("File exceeds the 25MB size limit.");
+      return;
+    }
+
+    const loadingToast = toast.loading(option === "all" ? "Preparing split PDFs..." : "Preparing split PDF...");
     try {
       const bytes = await file.arrayBuffer();
       const src = await PDFDocument.load(bytes);
-      const out = await PDFDocument.create();
-      const idx = Math.min(Math.max(1, currentPage), src.getPageCount()) - 1;
-      const [copied] = await out.copyPages(src, [idx]);
-      out.addPage(copied);
-      const outBytes = await out.save();
-      const blob = new Blob([outBytes as any], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `page_${currentPage}_${file.name}`;
-      link.click();
-      URL.revokeObjectURL(url);
-      toast.dismiss(loadingToast);
-      toast.success("Split downloaded!");
+      
+      // Validate page count (max 20 pages)
+      const MAX_PAGES = 20;
+      const pageCount = src.getPageCount();
+      if (pageCount > MAX_PAGES) {
+        toast.dismiss(loadingToast);
+        toast.error(`PDF exceeds the maximum of ${MAX_PAGES} pages.`);
+        return;
+      }
+
+      if (option === "current") {
+        const out = await PDFDocument.create();
+        const idx = Math.min(Math.max(1, currentPage), pageCount) - 1;
+        const [copied] = await out.copyPages(src, [idx]);
+        out.addPage(copied);
+        const outBytes = await out.save();
+        const blob = new Blob([outBytes as any], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `page_${currentPage}_${file.name}`;
+        link.click();
+        URL.revokeObjectURL(url);
+        recordRateLimit("split");
+        toast.dismiss(loadingToast);
+        toast.success("Split downloaded!");
+      } else {
+        // Split all pages
+        const baseFileName = file.name.replace(/\.pdf$/i, "");
+        for (let i = 0; i < pageCount; i++) {
+          const out = await PDFDocument.create();
+          const [copied] = await out.copyPages(src, [i]);
+          out.addPage(copied);
+          const outBytes = await out.save();
+          const blob = new Blob([outBytes as any], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `${baseFileName}_page_${i + 1}.pdf`;
+          link.click();
+          URL.revokeObjectURL(url);
+          // Small delay between downloads to avoid browser blocking
+          if (i < pageCount - 1) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
+        recordRateLimit("split");
+        toast.dismiss(loadingToast);
+        toast.success(`Split ${pageCount} pages downloaded!`);
+      }
     } catch (err: any) {
       toast.dismiss(loadingToast);
       toast.error(`Split failed: ${err?.message ?? "Unknown error"}`);
@@ -482,6 +599,10 @@ export function useEditor() {
     signatureUsed,
     showSignaturePad,
     showUpgradeModal,
+    showMergeModal,
+    showSplitModal,
+    showRotateModal,
+    showRearrangeModal,
     
     // Setters
     setActiveTool,
@@ -500,6 +621,10 @@ export function useEditor() {
     setFieldKind,
     setShowSignaturePad,
     setShowUpgradeModal,
+    setShowMergeModal,
+    setShowSplitModal,
+    setShowRotateModal,
+    setShowRearrangeModal,
     
     // Actions
     handleSave,

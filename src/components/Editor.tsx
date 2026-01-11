@@ -7,6 +7,10 @@ import { PDFViewer } from "@/components/PDFViewerClient";
 import { EditorFloatingControls, EditorToolbar } from "@/components/EditorToolbar";
 import { SignaturePad } from "./SignaturePad";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import { MergeModal } from "@/components/MergeModal";
+import { SplitModal } from "@/components/SplitModal";
+import { RotateModal } from "@/components/RotateModal";
+import { RearrangeModal } from "@/components/RearrangeModal";
 import { Button } from "@/components/ui/button";
 import { DrawToolsPanel } from "@/components/DrawToolsPanel";
 import { FieldsPanel } from "@/components/FieldsPanel";
@@ -18,7 +22,6 @@ import { AdSidebar } from "@/components/AdSidebar";
  */
 export default function Editor() {
   const editor = useEditor();
-  const mergeInputRef = useRef<HTMLInputElement>(null);
 
   // Ensure the editor is a fixed viewport shell; the PDF viewport is the only scroller.
   useEffect(() => {
@@ -45,21 +48,6 @@ export default function Editor() {
       ].join(" ")}
     >
       <main className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
-        {/* Hidden file input for Merge */}
-        <input
-          ref={mergeInputRef}
-          type="file"
-          accept=".pdf,application/pdf"
-          multiple
-          className="hidden"
-          onChange={async (e) => {
-            const files = Array.from(e.target.files ?? []);
-            if (files.length) await editor.mergeWithPDFs(files);
-            // reset so selecting the same file twice still triggers change
-            e.currentTarget.value = "";
-          }}
-        />
-
         <div className="shrink-0 w-full sticky top-0 z-20">
           <EditorHeader
             filename={editor.file.name}
@@ -73,15 +61,19 @@ export default function Editor() {
             isPro={editor.isPro}
             onToolChange={(tool) => {
               if (tool === "rotate") {
-                editor.rotatePage(editor.currentPage, 90);
+                editor.setShowRotateModal(true);
                 return;
               }
               if (tool === "merge") {
-                mergeInputRef.current?.click();
+                editor.setShowMergeModal(true);
                 return;
               }
               if (tool === "split") {
-                editor.splitCurrentPageToDownload();
+                editor.setShowSplitModal(true);
+                return;
+              }
+              if (tool === "rearrange") {
+                editor.setShowRearrangeModal(true);
                 return;
               }
               if (tool === "sign") {
@@ -186,6 +178,40 @@ export default function Editor() {
           isOpen={editor.showUpgradeModal}
           onClose={() => editor.setShowUpgradeModal(false)}
           reason="signature"
+        />
+
+        <MergeModal
+          isOpen={editor.showMergeModal}
+          onClose={() => editor.setShowMergeModal(false)}
+          onMerge={editor.mergeWithPDFs}
+          currentFileName={editor.file?.name || ""}
+        />
+
+        <SplitModal
+          isOpen={editor.showSplitModal}
+          onClose={() => editor.setShowSplitModal(false)}
+          onSplit={editor.splitCurrentPageToDownload}
+          currentPage={editor.currentPage}
+          totalPages={editor.totalPages}
+        />
+
+        <RotateModal
+          isOpen={editor.showRotateModal}
+          onClose={() => editor.setShowRotateModal(false)}
+          onRotate={editor.rotatePage}
+          currentPage={editor.currentPage}
+          currentRotation={editor.pageRotations[editor.currentPage] || 0}
+        />
+
+        <RearrangeModal
+          isOpen={editor.showRearrangeModal}
+          onClose={() => editor.setShowRearrangeModal(false)}
+          onRearrange={async (newOrder) => {
+            editor.setPageOrder(newOrder);
+            editor.saveToHistory();
+          }}
+          currentOrder={editor.pageOrder}
+          totalPages={editor.totalPages}
         />
       </main>
 

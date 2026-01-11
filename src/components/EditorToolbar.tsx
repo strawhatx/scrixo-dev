@@ -82,17 +82,13 @@ export function EditorToolbar({
         <Separator orientation="vertical" className="h-10 mx-2" />
         
         {actions.map((action) => (
-          // Advanced actions are Pro-only for now.
           <button
             key={action.id}
             onClick={() => onToolChange(action.id)}
-            disabled={!isPro}
             className={`flex flex-col items-center justify-center px-3 py-1 rounded-lg transition-colors min-w-[48px] ${
-              !isPro
-                ? "opacity-40 cursor-not-allowed text-muted-foreground"
-                : activeTool === action.id
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              activeTool === action.id
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
             <action.icon className="w-5 h-5 mb-0.5" />
