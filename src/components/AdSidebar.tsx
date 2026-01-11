@@ -57,14 +57,16 @@ export function AdSidebar() {
         </div>
         <div className="p-2 pb-3">
           <div className="w-full flex items-center justify-center max-w-[320px] mx-auto">
-            <ins
-              className="adsbygoogle"
-              style={{ display: "block", width: "100%", minHeight: "50px", maxHeight: "80px" }}
+
+            <ins className="adsbygoogle"
+              style={{ display: "block" }}
               data-ad-client="ca-pub-6117588691065617"
               data-ad-slot="9784233430"
               data-ad-format="auto"
-              data-full-width-responsive="true"
-            />
+              data-full-width-responsive="true"></ins>
+            <script>
+              (adsbygoogle = window.adsbygoogle || []).push({ });
+            </script>
           </div>
         </div>
       </aside>
