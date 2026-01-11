@@ -34,7 +34,7 @@ export default function Dashboard() {
                 {/* Top Right Controls */}
                 <div className="absolute top-4 right-6 z-20 flex items-center gap-2">
                     <Button variant="ghost" className="text-muted-foreground hover:text-foreground" asChild>
-                        <Link href="https://github.com/nathanieljames/pdf-express" target="_blank" rel="noopener noreferrer" title="Report Bug">
+                        <Link href="https://github.com/strawhatx/scrixo/issues" target="_blank" rel="noopener noreferrer" title="Report Bug">
                             REPORT BUG
                         </Link>
                     </Button>

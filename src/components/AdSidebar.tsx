@@ -47,19 +47,19 @@ export function AdSidebar() {
         </div>
       </aside>
 
-      {/* Mobile/Tablet: Bottom Banner */}
-      <aside className="w-full bg-muted/30 border-t border-border xl:hidden shrink-0">
-        <div className="p-3 border-b border-border flex items-center justify-between">
-          <span className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">
+      {/* Mobile/Tablet: Fixed Bottom Banner */}
+      <aside className="fixed bottom-0 left-0 right-0 w-full bg-muted/95 backdrop-blur-sm border-t border-border xl:hidden z-50 shadow-lg">
+        <div className="p-2 border-b border-border flex items-center justify-between">
+          <span className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest">
             Advertisement
           </span>
-          <Search className="w-3 h-3 text-muted-foreground/20" />
+          <Search className="w-2.5 h-2.5 text-muted-foreground/20" />
         </div>
-        <div className="p-4">
-          <div className="w-full flex items-center justify-center min-h-[100px]">
+        <div className="p-2 pb-3">
+          <div className="w-full flex items-center justify-center max-w-[320px] mx-auto">
             <ins
               className="adsbygoogle"
-              style={{ display: "block", width: "100%", minHeight: "100px" }}
+              style={{ display: "block", width: "100%", minHeight: "50px", maxHeight: "80px" }}
               data-ad-client="ca-pub-6117588691065617"
               data-ad-slot="9784233430"
               data-ad-format="auto"
