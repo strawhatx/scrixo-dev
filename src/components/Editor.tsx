@@ -22,6 +22,7 @@ import { AdSidebar } from "@/components/AdSidebar";
  */
 export default function Editor() {
   const editor = useEditor();
+  const signToolActivated = React.useRef(false);
 
   // Ensure the editor is a fixed viewport shell; the PDF viewport is the only scroller.
   useEffect(() => {
@@ -31,6 +32,21 @@ export default function Editor() {
       document.body.style.overflow = prev;
     };
   }, []);
+
+  // Handle sign tool activation from URL params
+  useEffect(() => {
+    if (!editor.loading && editor.file && editor.activeTool === "sign" && !editor.pendingSignature && !signToolActivated.current) {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("tool") === "sign") {
+        signToolActivated.current = true;
+        // Small delay to ensure everything is initialized
+        const timer = setTimeout(() => {
+          editor.handleSignRequest();
+        }, 300);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [editor.loading, editor.file, editor.activeTool, editor.pendingSignature, editor.handleSignRequest]);
 
   if (editor.loading) {
     return <EditorLoadingState />;

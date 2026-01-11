@@ -28,8 +28,30 @@ export function useEditor() {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
-  // Tool & View State
+  // Tool & View State - Initialize from URL param if present
   const [activeTool, setActiveTool] = useState<ToolType>("sign");
+  const toolParamProcessed = useRef(false);
+  
+  // Read initial tool from URL on mount and activate it
+  useEffect(() => {
+    if (typeof window !== "undefined" && file && !loading && !toolParamProcessed.current) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const toolParam = urlParams.get("tool") as ToolType;
+      if (toolParam && ["sign", "draw", "field", "image", "merge", "split", "rearrange", "rotate"].includes(toolParam)) {
+        toolParamProcessed.current = true;
+        if (["merge", "split", "rearrange", "rotate"].includes(toolParam)) {
+          // For modal tools, open the modal
+          if (toolParam === "rotate") setShowRotateModal(true);
+          else if (toolParam === "merge") setShowMergeModal(true);
+          else if (toolParam === "split") setShowSplitModal(true);
+          else if (toolParam === "rearrange") setShowRearrangeModal(true);
+        } else {
+          // For direct tools, set active tool
+          setActiveTool(toolParam);
+        }
+      }
+    }
+  }, [file, loading]);
   const [zoom, setZoom] = useState(100);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
