@@ -523,7 +523,14 @@ export function useEditor() {
         toast.dismiss(loadingToast);
         toast.success("Split downloaded!");
       } else {
-        // Split all pages
+        // Split all pages (max 3 pages)
+        const MAX_SPLIT_PAGES = 3;
+        if (pageCount > MAX_SPLIT_PAGES) {
+          toast.dismiss(loadingToast);
+          toast.error(`Cannot split more than ${MAX_SPLIT_PAGES} pages. This PDF has ${pageCount} pages.`);
+          return;
+        }
+
         const baseFileName = file.name.replace(/\.pdf$/i, "");
         for (let i = 0; i < pageCount; i++) {
           const out = await PDFDocument.create();

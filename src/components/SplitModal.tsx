@@ -20,6 +20,11 @@ export function SplitModal({ isOpen, onClose, onSplit, currentPage, totalPages }
   const [isSplitting, setIsSplitting] = useState(false);
 
   const handleSplit = async () => {
+    // Validate split all option
+    if (splitOption === "all" && totalPages > 3) {
+      return; // Should not happen, but safety check
+    }
+    
     setIsSplitting(true);
     try {
       await onSplit(splitOption);
@@ -97,18 +102,28 @@ export function SplitModal({ isOpen, onClose, onSplit, currentPage, totalPages }
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-3 p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-                  <RadioGroupItem value="all" id="all" className="mt-0.5" />
-                  <div className="flex-1">
-                    <Label htmlFor="all" className="cursor-pointer">
-                      <div className="font-medium text-foreground">Split All Pages</div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        Download each page as a separate PDF ({totalPages} files)
-                      </div>
-                    </Label>
+                {totalPages <= 3 && (
+                  <div className="flex items-start space-x-3 p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                    <RadioGroupItem value="all" id="all" className="mt-0.5" />
+                    <div className="flex-1">
+                      <Label htmlFor="all" className="cursor-pointer">
+                        <div className="font-medium text-foreground">Split All Pages</div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Download each page as a separate PDF ({totalPages} files)
+                        </div>
+                      </Label>
+                    </div>
                   </div>
-                </div>
+                )}
               </RadioGroup>
+
+              {totalPages > 3 && (
+                <div className="bg-muted/30 rounded-lg p-4 border border-border">
+                  <p className="text-xs text-muted-foreground">
+                    <strong className="text-foreground">Note:</strong> Split all pages is only available for PDFs with 3 pages or fewer. This PDF has {totalPages} pages. Use "Current Page Only" to split individual pages.
+                  </p>
+                </div>
+              )}
 
               <div className="bg-muted/30 rounded-lg p-4 border border-border">
                 <p className="text-xs text-muted-foreground">
