@@ -4,17 +4,19 @@ import React, { useEffect, useRef } from "react";
 import { Download, FileText, Loader2, Save, Search } from "lucide-react";
 import { useEditor } from "@/hooks/useEditor";
 import { PDFViewer } from "@/components/PDFViewerClient";
-import { EditorFloatingControls, EditorToolbar } from "@/components/EditorToolbar";
+import { EditorFloatingControls, EditorToolbar, MobileTopControls } from "@/components/EditorToolbar";
 import { SignaturePad } from "./SignaturePad";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { MergeModal } from "@/components/MergeModal";
 import { SplitModal } from "@/components/SplitModal";
 import { RotateModal } from "@/components/RotateModal";
 import { RearrangeModal } from "@/components/RearrangeModal";
-import { Button } from "@/components/ui/button";
-import { DrawToolsPanel } from "@/components/DrawToolsPanel";
-import { FieldsPanel } from "@/components/FieldsPanel";
+import { DrawToolsPanel, DrawToolsMobileBar } from "@/components/DrawToolsPanel";
+import { FieldsPanel, FieldsMobileBar } from "@/components/FieldsPanel";
 import { AdSidebar } from "@/components/AdSidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 /**
  * Staff-Level Editor Component
@@ -22,7 +24,9 @@ import { AdSidebar } from "@/components/AdSidebar";
  */
 export default function Editor() {
   const editor = useEditor();
+  const isMobile = useIsMobile();
   const signToolActivated = React.useRef(false);
+  const [pagesSidebarOpen, setPagesSidebarOpen] = React.useState(false);
 
   // Ensure the editor is a fixed viewport shell; the PDF viewport is the only scroller.
   useEffect(() => {
@@ -56,6 +60,34 @@ export default function Editor() {
     return null; // Hook handles redirect
   }
 
+  const handleToolChange = (tool: import("@/components/EditorToolbar").ToolType) => {
+    if (tool === "rotate") {
+      editor.setShowRotateModal(true);
+      return;
+    }
+    if (tool === "merge") {
+      editor.setShowMergeModal(true);
+      return;
+    }
+    if (tool === "split") {
+      editor.setShowSplitModal(true);
+      return;
+    }
+    if (tool === "rearrange") {
+      editor.setShowRearrangeModal(true);
+      return;
+    }
+    if (tool === "sign") {
+      editor.setActiveTool("sign");
+      // Open the signature modal immediately unless the user is already holding a signature to place.
+      if (!editor.pendingSignature) {
+        editor.handleSignRequest();
+      }
+      return;
+    }
+    editor.setActiveTool(tool);
+  };
+
   return (
     <div
       className={[
@@ -64,7 +96,46 @@ export default function Editor() {
       ].join(" ")}
     >
       <main className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
-        <div className="shrink-0 w-full sticky top-0 z-20">
+        {/* Mobile: Minimal top controls */}
+        <MobileTopControls
+          onUndo={editor.undo}
+          onRedo={editor.redo}
+          onDownload={editor.handleDownload}
+          canUndo={editor.historyIndex > 0}
+          canRedo={editor.historyIndex < editor.historyLength - 1}
+          onMenuClick={() => setPagesSidebarOpen(true)}
+        />
+        
+        {/* Mobile: Toolbar as sub-nav below top controls */}
+        <div className="md:hidden sticky top-0 z-10 bg-card border-b border-border">
+          <EditorToolbar
+            activeTool={editor.activeTool}
+            isPro={editor.isPro}
+            filename={editor.file.name}
+            onToolChange={handleToolChange}
+          />
+          {/* Mobile: Draw tools toolbar */}
+          {editor.activeTool === "draw" && isMobile && (
+            <DrawToolsMobileBar
+              tool={editor.drawTool}
+              onToolChange={editor.setDrawTool}
+              color={editor.drawColor}
+              onColorChange={editor.setDrawColor}
+              width={editor.drawWidth}
+              onWidthChange={editor.setDrawWidth}
+            />
+          )}
+          {/* Mobile: Fields toolbar */}
+          {editor.activeTool === "field" && isMobile && (
+            <FieldsMobileBar
+              selected={editor.fieldKind}
+              onSelect={editor.setFieldKind}
+            />
+          )}
+        </div>
+        
+        {/* Desktop: Full header */}
+        <div className="hidden md:block shrink-0 w-full sticky top-0 z-20">
           <EditorHeader
             filename={editor.file.name}
             isFree={!editor.user}
@@ -75,33 +146,8 @@ export default function Editor() {
           <EditorToolbar
             activeTool={editor.activeTool}
             isPro={editor.isPro}
-            onToolChange={(tool) => {
-              if (tool === "rotate") {
-                editor.setShowRotateModal(true);
-                return;
-              }
-              if (tool === "merge") {
-                editor.setShowMergeModal(true);
-                return;
-              }
-              if (tool === "split") {
-                editor.setShowSplitModal(true);
-                return;
-              }
-              if (tool === "rearrange") {
-                editor.setShowRearrangeModal(true);
-                return;
-              }
-              if (tool === "sign") {
-                editor.setActiveTool("sign");
-                // Open the signature modal immediately unless the user is already holding a signature to place.
-                if (!editor.pendingSignature) {
-                  editor.handleSignRequest();
-                }
-                return;
-              }
-              editor.setActiveTool(tool);
-            }}
+            filename={editor.file.name}
+            onToolChange={handleToolChange}
           />
         </div>
 
@@ -111,6 +157,7 @@ export default function Editor() {
             zoom={editor.zoom}
             currentPage={editor.currentPage}
             onPageChange={editor.setCurrentPage}
+            onZoomChange={editor.setZoom}
             rotation={editor.rotation}
             pageOrder={editor.pageOrder}
             pageRotations={editor.pageRotations}
@@ -229,6 +276,42 @@ export default function Editor() {
           currentOrder={editor.pageOrder}
           totalPages={editor.totalPages}
         />
+
+        {/* Mobile: Pages Sidebar Sheet */}
+        <Sheet open={pagesSidebarOpen} onOpenChange={setPagesSidebarOpen}>
+          <SheetContent side="left" className="w-[280px] p-0">
+            <div className="flex flex-col h-full bg-card">
+              <div className="px-4 py-3 border-b border-border">
+                <h2 className="text-lg font-semibold">Pages</h2>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="space-y-2">
+                  {Array.from({ length: editor.totalPages }, (_, i) => i + 1).map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      onClick={() => {
+                        editor.setCurrentPage(pageNum);
+                        setPagesSidebarOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
+                        editor.currentPage === pageNum
+                          ? "bg-primary/10 border-primary text-primary"
+                          : "bg-background border-border hover:bg-muted"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">Page {pageNum}</span>
+                        {editor.currentPage === pageNum && (
+                          <span className="text-primary font-bold">•</span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
       </main>
 
       <AdSidebar />

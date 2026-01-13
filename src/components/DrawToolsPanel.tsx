@@ -4,6 +4,7 @@ import React, { useMemo, useRef } from "react";
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import { Eraser, Highlighter, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export type DrawTool = "pen" | "highlighter" | "eraser";
 
@@ -24,6 +25,7 @@ export function DrawToolsPanel({
   onWidthChange: (w: number) => void;
   className?: string;
 }) {
+  const isMobile = useIsMobile();
   const presetColors = useMemo(
     () => [
       "#000000",
@@ -46,6 +48,12 @@ export function DrawToolsPanel({
     { id: "eraser", label: "Eraser", Icon: Eraser },
   ];
 
+  // Mobile: Render inline horizontal toolbar (should be rendered in Editor component)
+  if (isMobile) {
+    return null;
+  }
+
+  // Desktop: Vertical sidebar panel
   return (
     <div className={cn("pointer-events-auto absolute z-[70]", className)}>
       <div className="w-[46px] rounded-xl border border-border bg-card shadow-xl overflow-hidden">
@@ -155,6 +163,148 @@ export function DrawToolsPanel({
   );
 }
 
+// Mobile horizontal toolbar
+export function DrawToolsMobileBar({
+  tool,
+  onToolChange,
+  color,
+  onColorChange,
+  width,
+  onWidthChange,
+}: {
+  tool: DrawTool;
+  onToolChange: (t: DrawTool) => void;
+  color: string;
+  onColorChange: (hex: string) => void;
+  width: number;
+  onWidthChange: (w: number) => void;
+}) {
+  const presetColors = useMemo(
+    () => [
+      "#000000",
+      "#3b82f6",
+      "#8b5cf6",
+      "#ffffff",
+    ],
+    []
+  );
+  const customColorInputRef = useRef<HTMLInputElement>(null);
+  const isPresetSelected = presetColors.some((c) => c.toLowerCase() === color.toLowerCase());
+  const isCustomSelected = !isPresetSelected;
+  const customSwatchColor = isPresetSelected ? "#ff5a3c" : color;
+  const customRainbowBg =
+    "conic-gradient(from 0deg, #ff004c, #ff8a00, #ffe600, #18d26b, #00c2ff, #7b61ff, #ff00c8, #ff004c)";
+
+  const toolItems: Array<{ id: DrawTool; label: string; Icon: React.ComponentType<{ className?: string }> }> = [
+    { id: "pen", label: "Pen", Icon: Pencil },
+    { id: "highlighter", label: "Highlight", Icon: Highlighter },
+    { id: "eraser", label: "Eraser", Icon: Eraser },
+  ];
+
+  return (
+    <div className="border-t border-border bg-card px-2 py-2">
+      <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
+        {/* Tools */}
+        <div className="flex items-center gap-1 shrink-0">
+          {toolItems.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onToolChange(id)}
+              className={cn(
+                "h-9 w-9 rounded-lg flex items-center justify-center border transition-colors touch-manipulation",
+                tool === id
+                  ? "border-[#ff5a3c]/40 bg-[#ff5a3c]/10 text-[#ff5a3c]"
+                  : "border-border bg-background hover:bg-muted text-foreground"
+              )}
+              aria-label={label}
+              title={label}
+            >
+              <Icon className="h-4 w-4" />
+            </button>
+          ))}
+        </div>
+
+        <div className="h-6 w-px bg-border shrink-0" />
+
+        {/* Stroke width slider */}
+        <div className="flex items-center gap-2 shrink-0 min-w-[100px]">
+          <HorizontalThicknessSlider value={width} onChange={onWidthChange} />
+        </div>
+
+        <div className="h-6 w-px bg-border shrink-0" />
+
+        {/* Colors */}
+        <div className="flex items-center gap-2 shrink-0">
+          {presetColors.map((c) => {
+            const isSelected = c.toLowerCase() === color.toLowerCase();
+            const isWhite = c.toLowerCase() === "#ffffff";
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => onColorChange(c)}
+                className={cn(
+                  "h-7 w-7 rounded-full border flex items-center justify-center transition-transform touch-manipulation",
+                  isSelected ? "border-[#ff5a3c] ring-2 ring-[#ff5a3c]/30" : "border-border active:scale-95"
+                )}
+                aria-label={`Color ${c}`}
+                title={c}
+              >
+                <span
+                  className={cn(
+                    "h-4 w-4 rounded-full",
+                    isWhite ? "border border-border" : ""
+                  )}
+                  style={{ backgroundColor: c }}
+                />
+              </button>
+            );
+          })}
+
+          {/* Custom color */}
+          <button
+            type="button"
+            onClick={() => customColorInputRef.current?.click()}
+            className={cn(
+              "h-7 w-7 rounded-full border flex items-center justify-center transition-transform touch-manipulation",
+              isCustomSelected
+                ? "border-[#ff5a3c] ring-2 ring-[#ff5a3c]/30 shadow-sm"
+                : "border-border active:scale-95"
+            )}
+            aria-label="Custom color"
+            title={isPresetSelected ? "Custom color" : `Custom: ${color}`}
+          >
+            <span
+              className="h-5 w-5 rounded-full p-[1px]"
+              style={{ backgroundImage: customRainbowBg }}
+              aria-hidden="true"
+            >
+              <span
+                className="block h-full w-full rounded-full"
+                style={
+                  isCustomSelected
+                    ? { backgroundColor: customSwatchColor }
+                    : { backgroundImage: customRainbowBg }
+                }
+              />
+            </span>
+            <input
+              ref={customColorInputRef}
+              type="color"
+              value={customSwatchColor}
+              onChange={(e) => onColorChange(e.target.value)}
+              className="sr-only"
+              aria-hidden="true"
+              tabIndex={-1}
+            />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ThicknessSlider({
   value,
   onChange,
@@ -219,5 +369,65 @@ function ThicknessSlider({
   );
 }
 
+function HorizontalThicknessSlider({
+  value,
+  onChange,
+  min = 2,
+  max = 24,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+}) {
+  const clamped = Math.max(min, Math.min(max, value));
+  const pct = ((clamped - min) / (max - min)) * 100;
 
+  return (
+    <div className="relative flex-1 h-6" style={{ ["--pct" as any]: `${pct}%` }}>
+      {/* Ghost/background */}
+      <div
+        className="pointer-events-none absolute inset-y-0 left-0 right-0 opacity-25"
+        style={{
+          background: "hsl(var(--muted-foreground))",
+          clipPath: "polygon(0% 40%, 100% 0%, 100% 100%, 0% 60%)",
+          borderRadius: "999px",
+        }}
+      />
+      {/* Active fill */}
+      <div
+        className="pointer-events-none absolute inset-y-0 left-0"
+        style={{
+          width: "var(--pct)",
+          background: "hsl(var(--primary))",
+          clipPath: "polygon(0% 40%, 100% 0%, 100% 100%, 0% 60%)",
+          borderRadius: "999px",
+          opacity: 0.9,
+        }}
+      />
 
+      <SliderPrimitive.Root
+        orientation="horizontal"
+        value={[clamped]}
+        min={min}
+        max={max}
+        step={1}
+        onValueChange={(v) => onChange(v[0] ?? clamped)}
+        className="relative flex h-6 w-full touch-none select-none items-center"
+        aria-label="Stroke size"
+      >
+        <SliderPrimitive.Track className="relative h-full w-full rounded-full bg-transparent">
+          <SliderPrimitive.Range className="absolute h-full bg-transparent" />
+        </SliderPrimitive.Track>
+        <SliderPrimitive.Thumb
+          className={cn(
+            "block h-5 w-5 rounded-full bg-primary shadow-md",
+            "border-[4px] border-background",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            "disabled:pointer-events-none disabled:opacity-50"
+          )}
+        />
+      </SliderPrimitive.Root>
+    </div>
+  );
+}

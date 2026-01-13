@@ -224,8 +224,8 @@ function StandardUploadView({
         onDrop={handleDrop}
         onClick={triggerPicker}
         className={cn(
-          "dropzone flex flex-col items-center justify-center p-16 cursor-pointer group transition-all duration-300",
-          "border-2 border-dashed border-border hover:border-primary/50",
+          "dropzone flex flex-col items-center justify-center p-6 sm:p-10 md:p-16 cursor-pointer group transition-all duration-300 touch-manipulation",
+          "border-2 border-dashed border-border hover:border-primary/50 active:border-primary/70",
           isDragging && "border-primary bg-primary/5 shadow-glow"
         )}
       >
@@ -247,10 +247,10 @@ function StandardUploadView({
               exit={{ scale: 0.8, opacity: 0 }}
               className="flex flex-col items-center"
             >
-              <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-glow">
-                <FileText className="w-10 h-10 text-primary-foreground" />
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-2xl flex items-center justify-center mb-3 sm:mb-4 shadow-glow">
+                <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-primary-foreground" />
               </div>
-              <p className="text-lg font-semibold text-primary">Drop your PDF here!</p>
+              <p className="text-base sm:text-lg font-semibold text-primary">Drop your PDF here!</p>
             </motion.div>
           ) : (
             <motion.div
@@ -260,16 +260,16 @@ function StandardUploadView({
               exit={{ scale: 0.8, opacity: 0 }}
               className="flex flex-col items-center"
             >
-              <div className="w-20 h-20 bg-secondary rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <Upload className="w-10 h-10 text-primary" />
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-secondary rounded-2xl flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform">
+                <Upload className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
               </div>
-              <p className="text-lg font-semibold text-foreground mb-2">
+              <p className="text-base sm:text-lg font-semibold text-foreground mb-1 sm:mb-2 px-2 text-center">
                 Drag & drop your PDF here
               </p>
-              <p className="text-muted-foreground">
+              <p className="text-sm sm:text-base text-muted-foreground text-center px-2">
                 or <span className="text-primary font-medium">click to browse</span>
               </p>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mt-6 font-bold">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mt-4 sm:mt-6 font-bold">
                 Max file size: {MAX_FILE_SIZE_MB}MB
               </p>
             </motion.div>

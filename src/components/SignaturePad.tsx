@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { Check, Trash2, Type, PenLine, Upload, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export interface SignaturePadProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
   const sigCanvas = useRef<SignatureCanvas>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const customColorInputRef = useRef<HTMLInputElement>(null);
+  const isMobile = useIsMobile();
   const [resolvedUserId, setResolvedUserId] = useState<string | undefined>(undefined);
 
   const [mode, setMode] = useState<SigMode>("type");
@@ -297,14 +299,15 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-[60] flex items-end justify-center"
           onClick={onClose}
         >
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-card rounded-2xl shadow-lg w-full max-w-3xl overflow-hidden"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+            className="bg-card rounded-t-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -329,8 +332,55 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
               </div>
             )}
 
-            <div className="grid grid-cols-[220px_1fr] min-h-[320px]">
-              {/* Left nav */}
+            {/* Mobile: Top tabs */}
+            {isMobile && (
+              <div className="flex items-center gap-1 px-4 pt-2 pb-3 border-b border-border">
+                <button
+                  type="button"
+                  onClick={() => setMode("type")}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium",
+                    mode === "type"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <Type className="w-4 h-4" />
+                  <span>Type</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("draw")}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium",
+                    mode === "draw"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <PenLine className="w-4 h-4" />
+                  <span>Draw</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("upload")}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium",
+                    mode === "upload"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Upload</span>
+                </button>
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto">
+              <div className={cn("min-h-[320px]", isMobile ? "flex flex-col" : "grid grid-cols-[220px_1fr]")}>
+              {/* Desktop: Left nav */}
+              {!isMobile && (
               <aside className="border-r border-border bg-muted/10">
                 <div className="p-4 space-y-3">
                   <button
@@ -404,9 +454,10 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
                   </button>
                 </div>
               </aside>
+              )}
 
-              {/* Right content */}
-              <section className="p-4">
+              {/* Content */}
+              <section className={cn("p-4", isMobile && "flex-1")}>
                 {/* Saved signatures row */}
                 <div className="mb-6">
                   <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground/70 mb-3">
@@ -682,7 +733,7 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
                 </div>
 
                 {/* Footer */}
-                <div className="mt-6 flex items-center justify-between">
+                <div className={cn("mt-6 flex items-center justify-between", isMobile && "pb-20")}>
                   <label className="flex items-center gap-3 text-sm text-foreground select-none">
                     <Checkbox checked={saveForFuture} onCheckedChange={(v) => setSaveForFuture(Boolean(v))} />
                     Save for future use
@@ -697,6 +748,7 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
                   </Button>
                 </div>
               </section>
+              </div>
             </div>
           </motion.div>
         </motion.div>

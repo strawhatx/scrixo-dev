@@ -84,6 +84,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
         <meta name="google-adsense-account" content="ca-pub-6117588691065617" />
         <script
           async

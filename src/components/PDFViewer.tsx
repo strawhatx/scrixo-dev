@@ -10,6 +10,7 @@ import type { DrawStrokeOverlay, FieldOverlay, ImageOverlay, SignatureOverlay } 
 import type { FieldKind } from "@/types/fields";
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Set up PDF.js worker (served from `/public/pdfjs/` via `scripts/copy-pdf-worker.mjs`)
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
@@ -31,6 +32,7 @@ interface PDFViewerProps {
   zoom: number;
   currentPage: number;
   onPageChange: (page: number) => void;
+  onZoomChange?: (zoom: number) => void;
 
   // Base viewer rotation (still supported), plus per-page rotations.
   rotation: number;
@@ -201,6 +203,7 @@ export function PDFViewer(props: PDFViewerProps) {
     zoom,
     currentPage,
     onPageChange,
+    onZoomChange,
     rotation,
     pageOrder,
     pageRotations,
@@ -230,6 +233,7 @@ export function PDFViewer(props: PDFViewerProps) {
     dockPanel,
   } = props;
 
+  const isMobile = useIsMobile();
   const scrollRef = useRef<HTMLDivElement>(null);
   const pagesListRef = useRef<HTMLDivElement>(null);
   const pageContainerRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -258,6 +262,7 @@ export function PDFViewer(props: PDFViewerProps) {
   const loadedTextPagesRef = useRef<Set<number>>(new Set());
 
   const overlaysNormalizedRef = useRef(false);
+  const autoFitDoneRef = useRef(false);
   const [pageThumbs, setPageThumbs] = useState<Record<number, string>>({});
 
   const totalPages = pdfDoc?.numPages ?? 0;
@@ -550,6 +555,7 @@ export function PDFViewer(props: PDFViewerProps) {
         setTextItemsByPage({});
         loadedTextPagesRef.current = new Set();
         overlaysNormalizedRef.current = false;
+        autoFitDoneRef.current = false;
         onPageCountChange(pdf.numPages);
       } finally {
         if (!cancelled) setLoading(false);
@@ -624,6 +630,21 @@ export function PDFViewer(props: PDFViewerProps) {
       }
       if (cancelled) return;
       setPageLayouts(layouts);
+
+      // Auto-fit to width on initial load (only once per PDF load)
+      if (!autoFitDoneRef.current && onZoomChange && layouts.length > 0 && scrollRef.current) {
+        const firstPageLayout = layouts[0];
+        const containerWidth = scrollRef.current.clientWidth;
+        const padding = 48; // 24px padding on each side (p-6)
+        const availableWidth = Math.max(100, containerWidth - padding); // Ensure minimum width
+        if (firstPageLayout.baseWidth > 0 && availableWidth > 0) {
+          const fitZoom = Math.floor((availableWidth / firstPageLayout.baseWidth) * 100);
+          const clampedZoom = Math.max(50, Math.min(200, fitZoom)); // Clamp between 50% and 200%
+          autoFitDoneRef.current = true;
+          // Use setTimeout to avoid state updates during render
+          setTimeout(() => onZoomChange(clampedZoom), 0);
+        }
+      }
 
       // Wait a frame for canvases to mount.
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -1070,10 +1091,18 @@ export function PDFViewer(props: PDFViewerProps) {
         }
         return;
       }
+
+      // Mobile: Click-based field placement (instead of drag and drop)
+      if (activeTool === "field" && fieldKind && isMobile) {
+        placeFieldAt(pageNum, x, y, fieldKind);
+        return;
+      }
     },
     [
       activeTool,
+      fieldKind,
       imageOverlays,
+      isMobile,
       onImageOverlaysChange,
       onPendingImagePlaced,
       onPendingSignaturePlaced,
@@ -1081,6 +1110,7 @@ export function PDFViewer(props: PDFViewerProps) {
       onSignatureOverlaysChange,
       pendingImage,
       pendingSignature,
+      placeFieldAt,
       signatureOverlays,
     ]
   );
@@ -1294,15 +1324,18 @@ export function PDFViewer(props: PDFViewerProps) {
         }}
       />
 
-      <PagesSidebar
-        pageNumbers={pageNumbers}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        pagesListRef={pagesListRef}
-        onGoToPage={handleGoToPage}
-        thumbnailsByPage={pageThumbs}
-        rearrangeEnabled={false}
-      />
+      {/* Desktop: Pages Sidebar */}
+      <div className="hidden md:block">
+        <PagesSidebar
+          pageNumbers={pageNumbers}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pagesListRef={pagesListRef}
+          onGoToPage={handleGoToPage}
+          thumbnailsByPage={pageThumbs}
+          rearrangeEnabled={false}
+        />
+      </div>
 
       {dockPanel}
 

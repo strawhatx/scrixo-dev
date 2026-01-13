@@ -55,7 +55,7 @@ export function AdSidebar() {
           </span>
           <Search className="w-2.5 h-2.5 text-muted-foreground/20" />
         </div>
-        <div className="p-2 pb-3">
+        <div className="p-2 pb-6">
           <div className="w-full flex items-center justify-center max-w-[320px] mx-auto">
 
             <ins className="adsbygoogle"
