@@ -76,7 +76,8 @@ export const metadata: Metadata = {
     description: "Edit PDF documents no signup required",
     images: ["https://scrixo.com/og-image.png"],
   },
-};
+};;
+
 
 export default function RootLayout({
   children,
@@ -86,12 +87,6 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
         <meta name="google-adsense-account" content="ca-pub-6117588691065617" />
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6117588691065617"
-          crossOrigin="anonymous"
-          suppressHydrationWarning
-        />
       </head>
       <body
         className={[
