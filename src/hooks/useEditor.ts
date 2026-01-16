@@ -12,6 +12,7 @@ import {
   DrawStrokeOverlay,
   ImageOverlay,
   FieldOverlay,
+  TextOverlay,
 } from "@/lib/pdf-utils";
 import { ToolType } from "@/components/EditorToolbar";
 import type { FieldKind } from "@/types/fields";
@@ -37,7 +38,7 @@ export function useEditor() {
     if (typeof window !== "undefined" && file && !loading && !toolParamProcessed.current) {
       const urlParams = new URLSearchParams(window.location.search);
       const toolParam = urlParams.get("tool") as ToolType;
-      if (toolParam && ["sign", "draw", "field", "image", "merge", "split", "rearrange", "rotate"].includes(toolParam)) {
+      if (toolParam && ["sign", "draw", "field", "image", "text", "merge", "split", "rearrange", "rotate"].includes(toolParam)) {
         toolParamProcessed.current = true;
         if (["merge", "split", "rearrange", "rotate"].includes(toolParam)) {
           // For modal tools, open the modal
@@ -76,6 +77,11 @@ export function useEditor() {
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [fieldOverlays, setFieldOverlays] = useState<FieldOverlay[]>([]);
   const [fieldKind, setFieldKind] = useState<FieldKind>("text");
+  const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([]);
+  const [pendingText, setPendingText] = useState<{ text: string; fontSize: number; color: string } | null>(null);
+  // Text settings
+  const [textFontSize, setTextFontSize] = useState<number>(12);
+  const [textColor, setTextColor] = useState<string>("#000000");
   
   // History State
   const [history, setHistory] = useState<
@@ -84,6 +90,7 @@ export function useEditor() {
       draw: DrawStrokeOverlay[];
       img: ImageOverlay[];
       field: FieldOverlay[];
+      text: TextOverlay[];
       pageOrder: number[];
       pageRotations: Record<number, number>;
     }>
@@ -186,13 +193,14 @@ export function useEditor() {
         draw: [...drawStrokes],
         img: [...imageOverlays],
         field: [...fieldOverlays],
+        text: [...textOverlays],
         pageOrder: [...pageOrder],
         pageRotations: { ...pageRotations },
       });
       return newHistory;
     });
     setHistoryIndex(prev => prev + 1);
-  }, [drawStrokes, fieldOverlays, historyIndex, imageOverlays, pageOrder, pageRotations, signatureOverlays]);
+  }, [drawStrokes, fieldOverlays, historyIndex, imageOverlays, pageOrder, pageRotations, signatureOverlays, textOverlays]);
 
   const undo = useCallback(() => {
     if (historyIndex > 0) {
@@ -201,6 +209,7 @@ export function useEditor() {
       setDrawStrokes(prev.draw);
       setImageOverlays(prev.img);
       setFieldOverlays(prev.field);
+      setTextOverlays(prev.text);
       setPageOrder(prev.pageOrder);
       setPageRotations(prev.pageRotations);
       setHistoryIndex(historyIndex - 1);
@@ -214,6 +223,7 @@ export function useEditor() {
       setDrawStrokes(next.draw);
       setImageOverlays(next.img);
       setFieldOverlays(next.field);
+      setTextOverlays(next.text);
       setPageOrder(next.pageOrder);
       setPageRotations(next.pageRotations);
       setHistoryIndex(historyIndex + 1);
@@ -233,6 +243,7 @@ export function useEditor() {
         drawStrokes,
         imageOverlays,
         fieldOverlays,
+        textOverlays,
       });
       const blob = new Blob([pdfBytes as any], { type: "application/pdf" });
       
@@ -296,6 +307,7 @@ export function useEditor() {
         drawStrokes,
         imageOverlays,
         fieldOverlays,
+        textOverlays,
         watermark: isPro ? undefined : { text: "Edited with scrixo" },
       });
       const blob = new Blob([pdfBytes as any], { type: "application/pdf" });
@@ -417,6 +429,8 @@ export function useEditor() {
         setImageOverlays([]);
         setPendingImage(null);
         setFieldOverlays([]);
+        setTextOverlays([]);
+        setPendingText(null);
         setHistory([]);
         setHistoryIndex(-1);
         setPageRotations({});
@@ -557,6 +571,10 @@ export function useEditor() {
     pendingImage,
     fieldOverlays,
     fieldKind,
+    textOverlays,
+    pendingText,
+    textFontSize,
+    textColor,
     historyIndex,
     historyLength: history.length,
     signatureCount,
@@ -583,6 +601,10 @@ export function useEditor() {
     setPendingImage,
     setFieldOverlays,
     setFieldKind,
+    setTextOverlays,
+    setPendingText,
+    setTextFontSize,
+    setTextColor,
     setShowSignaturePad,
     setShowUpgradeModal,
     setShowMergeModal,

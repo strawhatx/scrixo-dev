@@ -8,6 +8,7 @@ import {
   Pencil,
   ImageIcon,
   FormInput,
+  Type,
   Combine,
   SplitSquareHorizontal,
   LayoutGrid,
@@ -33,6 +34,7 @@ export type ToolType =
   | "draw"
   | "image"
   | "field"
+  | "text"
   | "merge"
   | "split"
   | "rearrange"
@@ -52,6 +54,7 @@ const tools = [
   { id: "draw" as ToolType, icon: Pencil, label: "Draw" },
   { id: "image" as ToolType, icon: ImageIcon, label: "Image" },
   { id: "field" as ToolType, icon: FormInput, label: "Field" },
+  { id: "text" as ToolType, icon: Type, label: "Text" },
 ];
 
 const actions = [

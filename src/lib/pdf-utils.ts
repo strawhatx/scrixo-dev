@@ -51,6 +51,17 @@ export interface FieldOverlay {
   options?: string[];
 }
 
+export interface TextOverlay {
+  id: string;
+  page: number;
+  text: string;
+  x: number;
+  y: number;
+  fontSize?: number;
+  color?: string;
+  rotation?: number; // degrees
+}
+
 export async function processPDF(
   file: File,
   signatureOverlays: SignatureOverlay[],
@@ -60,6 +71,7 @@ export async function processPDF(
     drawStrokes?: DrawStrokeOverlay[];
     imageOverlays?: ImageOverlay[];
     fieldOverlays?: FieldOverlay[];
+    textOverlays?: TextOverlay[];
     watermark?: {
       /**
        * If provided, a light, diagonal watermark will be drawn on every page.
@@ -340,6 +352,21 @@ export async function processPDF(
         }
       }
     }
+  }
+
+  // Add text overlays
+  for (const textOverlay of opts?.textOverlays ?? []) {
+    const pageIdx = pageIndexByOriginal.get(textOverlay.page) ?? textOverlay.page - 1;
+    const page = pages[pageIdx];
+    if (!page) continue;
+    const textColor = cssHexToRgb(textOverlay.color ?? "#000000");
+    page.drawText(textOverlay.text, {
+      x: textOverlay.x,
+      y: page.getHeight() - textOverlay.y,
+      size: textOverlay.fontSize ?? 12,
+      color: textColor,
+      rotate: degrees(((textOverlay.rotation ?? 0) % 360 + 360) % 360),
+    } as any);
   }
 
   // Optional watermark (drawn last so it sits on top).

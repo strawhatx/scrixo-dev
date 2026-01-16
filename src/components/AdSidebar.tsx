@@ -29,7 +29,7 @@ export function AdSidebar() {
       <aside className="w-[300px] bg-muted/30 border-l border-border hidden xl:flex xl:flex-col shrink-0 min-h-0 overflow-hidden">
         <div className="p-4 border-b border-border flex items-center justify-between">
           <span className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">
-            Advertisement
+            PLACEHOLDR
           </span>
           <Search className="w-3 h-3 text-muted-foreground/20" />
         </div>

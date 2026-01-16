@@ -15,6 +15,7 @@ import { RotateModal } from "@/components/RotateModal";
 import { RearrangeModal } from "@/components/RearrangeModal";
 import { DrawToolsPanel, DrawToolsMobileBar } from "@/components/DrawToolsPanel";
 import { FieldsPanel, FieldsMobileBar } from "@/components/FieldsPanel";
+import { TextToolsPanel, TextToolsMobileBar } from "@/components/TextToolsPanel";
 import { AdSidebar } from "@/components/AdSidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -204,6 +205,17 @@ export default function Editor() {
             onFieldOverlaysChange={editor.setFieldOverlays}
             onFieldOverlaysCommit={editor.saveToHistory}
             fieldKind={editor.fieldKind}
+            textOverlays={editor.textOverlays}
+            onTextOverlaysChange={editor.setTextOverlays}
+            pendingText={editor.pendingText}
+            onPendingTextChange={editor.setPendingText}
+            onPendingTextPlaced={() => {
+              editor.setPendingText(null);
+              editor.saveToHistory();
+            }}
+            onTextOverlaysCommit={editor.saveToHistory}
+            textFontSize={editor.textFontSize}
+            textColor={editor.textColor}
           />
 
           {editor.activeTool === "draw" && (
@@ -214,6 +226,16 @@ export default function Editor() {
               onColorChange={editor.setDrawColor}
               width={editor.drawWidth}
               onWidthChange={editor.setDrawWidth}
+              className="left-[calc(14rem+0.75rem)] top-6"
+            />
+          )}
+
+          {editor.activeTool === "text" && (
+            <TextToolsPanel
+              fontSize={editor.textFontSize}
+              onFontSizeChange={editor.setTextFontSize}
+              color={editor.textColor}
+              onColorChange={editor.setTextColor}
               className="left-[calc(14rem+0.75rem)] top-6"
             />
           )}
