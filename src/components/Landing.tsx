@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useId, useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
     Check,
     FileText,
@@ -20,17 +20,25 @@ import {
     Zap,
     Sparkles,
     MousePointer2,
+    Menu,
+    X,
+    ChevronDown,
 } from "lucide-react";
-import { PDFUpload } from "@/components/PDFUpload";
 import { Button } from "@/components/ui/button";
 import { useDashboard } from "@/hooks/useDashboard";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Card } from "./ui/card";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function Landing() {
-    const { user, loading, handleFileSelect, signIn, signOut } = useDashboard();
-    const uploadInputId = useId();
+    const { user, loading, signIn, signOut } = useDashboard();
+    const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
     const year = useMemo(() => new Date().getFullYear(), []);
 
     useEffect(() => {
@@ -46,49 +54,147 @@ export default function Landing() {
         <div className="min-h-screen bg-background text-foreground font-sans select-none">
             {/* Header */}
             <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur">
-                <div className="mx-auto w-full max-w-6xl px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-glow">
-                            <FileText className="h-5 w-5" />
+                <div className="mx-auto w-full max-w-6xl px-6 py-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Link href="/" className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-glow">
+                                    <FileText className="h-5 w-5" />
+                                </div>
+                                <div className="flex flex-col leading-tight">
+                                    <span className="text-sm font-black tracking-tight">scrixo</span>
+                                    <span className="text-[11px] text-muted-foreground/70 font-semibold tracking-tight">
+                                        PDF editor
+                                    </span>
+                                </div>
+                            </Link>
                         </div>
-                        <div className="flex flex-col leading-tight">
-                            <span className="text-sm font-black tracking-tight">scrixo</span>
-                            <span className="text-[11px] text-muted-foreground/70 font-semibold tracking-tight">
-                                PDF editor
-                            </span>
+
+                        {/* Desktop Navigation */}
+                        <nav className="hidden md:flex items-center gap-1">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                                        Tools
+                                        <ChevronDown className="ml-1 h-3 w-3" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                    <DropdownMenuItem asChild>
+                                        <Link href="/sign-pdf">Sign PDF</Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <Link href="/fill-pdf">Fill PDF</Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <Link href="/merge-pdf">Merge PDF</Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <Link href="/split-pdf">Split PDF</Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <Link href="/annotate-pdf">Annotate</Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <Link href="/rotate-pdf">Rotate</Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <Link href="/reorder-pdf">Reorder</Link>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            <div className="h-5 w-px bg-border mx-1" />
+                            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
+                                <Link
+                                    href="https://github.com/nathanieljames/pdf-express"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title="Report Bug"
+                                >
+                                    REPORT BUG
+                                </Link>
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-foreground h-9 w-9"
+                                asChild
+                            >
+                                <Link href="https://x.com/heynathanielj" target="_blank" rel="noopener noreferrer" title="Twitter">
+                                    <Twitter className="w-4 h-4" />
+                                </Link>
+                            </Button>
+                            <div className="h-5 w-px bg-border mx-1" />
+                            <Button
+                                variant="ghost"
+                                className="text-muted-foreground hover:text-foreground text-xs font-bold uppercase tracking-tight h-9 px-3"
+                                onClick={activeUser.isFree ? signIn : signOut}
+                            >
+                                {activeUser.isFree ? "Log In" : "Log Out"}
+                            </Button>
+                        </nav>
+
+                        {/* Mobile Menu Button */}
+                        <div className="md:hidden flex items-center gap-2">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9"
+                                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                            >
+                                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                            </Button>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <Button variant="ghost" className="text-muted-foreground hover:text-foreground" asChild>
-                            <Link
-                                href="https://github.com/nathanieljames/pdf-express"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title="Report Bug"
-                            >
-                                REPORT BUG
-                            </Link>
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-muted-foreground hover:text-foreground h-9 w-9"
-                            asChild
-                        >
-                            <Link href="https://x.com/heynathanielj" target="_blank" rel="noopener noreferrer" title="Twitter">
-                                <Twitter className="w-4 h-4" />
-                            </Link>
-                        </Button>
-                        <div className="h-5 w-px bg-border mx-1" />
-                        <Button
-                            variant="ghost"
-                            className="text-muted-foreground hover:text-foreground text-xs font-bold uppercase tracking-tight h-9 px-3"
-                            onClick={activeUser.isFree ? signIn : signOut}
-                        >
-                            {activeUser.isFree ? "Log In" : "Log Out"}
-                        </Button>
-                    </div>
+                    {/* Mobile Navigation */}
+                    {mobileMenuOpen && (
+                        <nav className="md:hidden mt-4 pb-4 border-t border-border/60 pt-4">
+                            <div className="flex flex-col gap-2">
+                                <Button variant="ghost" className="justify-start" asChild onClick={() => setMobileMenuOpen(false)}>
+                                    <Link href="/sign-pdf">Sign PDF</Link>
+                                </Button>
+                                <Button variant="ghost" className="justify-start" asChild onClick={() => setMobileMenuOpen(false)}>
+                                    <Link href="/fill-pdf">Fill PDF</Link>
+                                </Button>
+                                <Button variant="ghost" className="justify-start" asChild onClick={() => setMobileMenuOpen(false)}>
+                                    <Link href="/merge-pdf">Merge PDF</Link>
+                                </Button>
+                                <Button variant="ghost" className="justify-start" asChild onClick={() => setMobileMenuOpen(false)}>
+                                    <Link href="/split-pdf">Split PDF</Link>
+                                </Button>
+                                <Button variant="ghost" className="justify-start" asChild onClick={() => setMobileMenuOpen(false)}>
+                                    <Link href="/annotate-pdf">Annotate</Link>
+                                </Button>
+                                <Button variant="ghost" className="justify-start" asChild onClick={() => setMobileMenuOpen(false)}>
+                                    <Link href="/rotate-pdf">Rotate</Link>
+                                </Button>
+                                <Button variant="ghost" className="justify-start" asChild onClick={() => setMobileMenuOpen(false)}>
+                                    <Link href="/reorder-pdf">Reorder</Link>
+                                </Button>
+                                <div className="h-px bg-border my-2" />
+                                <Button variant="ghost" className="justify-start" asChild onClick={() => setMobileMenuOpen(false)}>
+                                    <Link
+                                        href="https://github.com/nathanieljames/pdf-express"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        Report Bug
+                                    </Link>
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    className="justify-start"
+                                    onClick={() => {
+                                        activeUser.isFree ? signIn() : signOut();
+                                        setMobileMenuOpen(false);
+                                    }}
+                                >
+                                    {activeUser.isFree ? "Log In" : "Log Out"}
+                                </Button>
+                            </div>
+                        </nav>
+                    )}
                 </div>
             </header>
 
@@ -137,12 +243,46 @@ export default function Landing() {
                         </div>
 
                         <div className="space-y-3 h-full">
-                            <PDFUpload
-                                onFileSelect={handleFileSelect}
-                                minimal
-                                inputId={uploadInputId}
-                                className="w-full h-full flex justify-center max-w-md mx-auto"
-                            />
+                            <Link
+                                href="/upload"
+                                className={cn(
+                                    "w-full h-full relative overflow-hidden rounded-2xl border transition-all duration-300",
+                                    "bg-background cursor-pointer select-none shadow-sm",
+                                    "border-border/60 hover:border-[#ff5a3c]/60 hover:ring-4 hover:ring-[#ff5a3c]/10"
+                                )}
+                            >
+                                <div className="p-10 sm:p-12 flex items-center justify-center min-h-[300px]">
+                                    <div className="flex flex-col items-center text-center gap-4">
+                                        <div className="h-16 w-16 rounded-2xl bg-[#ff5a3c]/10 text-[#ff5a3c] flex items-center justify-center transition-all duration-300 hover:bg-[#ff5a3c] hover:text-white hover:shadow-md">
+                                            <FileText className="h-8 w-8" />
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <div className="text-base font-semibold text-foreground">
+                                                Drop your file here
+                                            </div>
+                                            <div className="text-[11px] font-black tracking-widest uppercase text-muted-foreground/60">
+                                                or
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            className={cn(
+                                                "h-12 px-7 rounded-xl font-black tracking-tight transition-all duration-200",
+                                                "bg-[#ff5a3c] text-white shadow-md hover:shadow-lg hover:-translate-y-0.5",
+                                                "hover:bg-[#ff4a2a]"
+                                            )}
+                                        >
+                                            Upload The PDF To Edit
+                                        </button>
+
+                                        <div className="text-[11px] font-semibold text-muted-foreground/60">
+                                            PDF only · Max 25MB
+                                        </div>
+                                    </div>
+                                </div>
+                            </Link>
                         </div>
                     </div>
                 </section>
@@ -342,12 +482,11 @@ export default function Landing() {
                             <Button
                                 variant="hero"
                                 size="xl"
-                                onClick={() => {
-                                    const el = document.getElementById(uploadInputId);
-                                    (el as HTMLInputElement | null)?.click();
-                                }}
+                                asChild
                             >
-                                👉 Upload a PDF
+                                <Link href="/upload">
+                                    👉 Upload a PDF
+                                </Link>
                             </Button>
                             <div className="text-xs text-muted-foreground/70 font-bold">No account required</div>
                         </div>
