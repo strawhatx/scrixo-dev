@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
-import { Download, FileText, Loader2, Save, Search } from "lucide-react";
+import React, { useEffect } from "react";
+import Link from "next/link";
+import { Download, FileText, Loader2, Save, ScrollText } from "lucide-react";
 import { useEditor } from "@/hooks/useEditor";
 import { PDFViewer } from "@/components/PDFViewerClient";
 import { EditorFloatingControls, EditorToolbar, MobileTopControls } from "@/components/EditorToolbar";
@@ -15,9 +16,11 @@ import { RotateModal } from "@/components/RotateModal";
 import { RearrangeModal } from "@/components/RearrangeModal";
 import { DrawToolsPanel, DrawToolsMobileBar } from "@/components/DrawToolsPanel";
 import { FieldsPanel, FieldsMobileBar } from "@/components/FieldsPanel";
-import { TextToolsPanel, TextToolsMobileBar } from "@/components/TextToolsPanel";
+import { TextToolsPanel } from "@/components/TextToolsPanel";
 import { AdSidebar } from "@/components/AdSidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { PDFUpload } from "@/components/PDFUpload";
+import { useFileStore } from "@/store/useFileStore";
 
 /**
  * Staff-Level Editor Component
@@ -58,7 +61,7 @@ export default function Editor() {
   }
 
   if (!editor.file) {
-    return null; // Hook handles redirect
+    return <EditorEmptyState />;
   }
 
   const handleToolChange = (tool: import("@/components/EditorToolbar").ToolType) => {
@@ -106,7 +109,7 @@ export default function Editor() {
           canRedo={editor.historyIndex < editor.historyLength - 1}
           onMenuClick={() => setPagesSidebarOpen(true)}
         />
-        
+
         {/* Mobile: Toolbar as sub-nav below top controls */}
         <div className="md:hidden sticky top-0 z-10 bg-card border-b border-border">
           <EditorToolbar
@@ -134,7 +137,7 @@ export default function Editor() {
             />
           )}
         </div>
-        
+
         {/* Desktop: Full header */}
         <div className="hidden md:block shrink-0 w-full sticky top-0 z-20">
           <EditorHeader
@@ -241,15 +244,15 @@ export default function Editor() {
           )}
 
           {/* Floating bottom controls (portaled to body for true viewport positioning) */}
-              <EditorFloatingControls
-                onUndo={editor.undo}
-                onRedo={editor.redo}
-                onZoomIn={() => editor.setZoom((z) => Math.min(z + 25, 200))}
-                onZoomOut={() => editor.setZoom((z) => Math.max(z - 25, 50))}
-                zoom={editor.zoom}
-                canUndo={editor.historyIndex > 0}
-                canRedo={editor.historyIndex < editor.historyLength - 1}
-              />
+          <EditorFloatingControls
+            onUndo={editor.undo}
+            onRedo={editor.redo}
+            onZoomIn={() => editor.setZoom((z) => Math.min(z + 25, 200))}
+            onZoomOut={() => editor.setZoom((z) => Math.max(z - 25, 50))}
+            zoom={editor.zoom}
+            canUndo={editor.historyIndex > 0}
+            canRedo={editor.historyIndex < editor.historyLength - 1}
+          />
         </div>
 
         {/* Modals */}
@@ -315,11 +318,10 @@ export default function Editor() {
                         editor.setCurrentPage(pageNum);
                         setPagesSidebarOpen(false);
                       }}
-                      className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
-                        editor.currentPage === pageNum
+                      className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${editor.currentPage === pageNum
                           ? "bg-primary/10 border-primary text-primary"
                           : "bg-background border-border hover:bg-muted"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-medium">Page {pageNum}</span>
@@ -354,6 +356,69 @@ function EditorLoadingState() {
   );
 }
 
+function EditorEmptyState() {
+  const setFile = useFileStore((state) => state.setFile);
+
+  const handleFileSelect = (file: File) => {
+    setFile(file);
+    // The editor will automatically re-render when file is set
+  };
+
+  return (
+    <div className="h-dvh bg-background text-foreground flex flex-col xl:flex-row overflow-hidden font-sans">
+      <main className="flex-1 min-w-0 flex flex-col items-center min-h-0 overflow-hidden">
+        {/* Header */}
+        <div className="hidden md:block shrink-0 w-full sticky top-0 z-20">
+          <EditorHeader
+            filename="No file loaded"
+            isFree={true}
+            onDownload={() => { }}
+          />
+        </div>
+
+        {/* Mobile Header */}
+        <div className="md:hidden shrink-0 w-full sticky top-0 z-20 bg-card border-b border-border px-4 py-3">
+          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <div className="w-8 h-8 bg-gradient-hero rounded-lg flex items-center justify-center">
+              <FileText className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <span className="font-display text-lg font-bold text-foreground">scrixo</span>
+          </Link>
+        </div>
+
+        {/* Upload Area */}
+        {/* Logo Section */}
+        <div className="z-10 w-full max-w-4xl flex flex-col items-center mt-12">
+          <div className="flex items-center gap-6 mb-4 animate-float">
+            <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center shadow-glow">
+              <ScrollText className="w-12 h-12 text-primary-foreground" />
+            </div>
+            <h1 className="text-[7rem] font-bold tracking-[-0.04em] leading-none text-foreground">
+              scrixo
+            </h1>
+          </div>
+
+          <p className="text-muted-foreground/80 text-lg font-medium max-w-2xl text-center mb-8">
+            Make changes to your PDF files directly in your browser for free no signup required
+          </p>
+
+
+          {/* Dropzone Area */}
+          <div className="w-full max-w-3xl aspect-[2.8/1] flex items-center justify-center relative">
+            <PDFUpload
+              onFileSelect={handleFileSelect}
+              minimal={false}
+              inputId="editor-upload"
+            />
+          </div>
+        </div>
+      </main>
+
+      <AdSidebar />
+    </div>
+  );
+}
+
 function EditorHeader({
   filename,
   isFree,
@@ -369,12 +434,12 @@ function EditorHeader({
 }) {
   return (
     <header className="bg-card border-b border-border px-4 py-3 flex items-center gap-4 shrink-0 w-full">
-      <div className="flex items-center gap-2">
+      <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
         <div className="w-8 h-8 bg-gradient-hero rounded-lg flex items-center justify-center">
           <FileText className="w-4 h-4 text-primary-foreground" />
         </div>
         <span className="font-display text-lg font-bold text-foreground">scrixo</span>
-      </div>
+      </Link>
 
       <div className="h-4 w-[1px] bg-border mx-2 hidden sm:block" />
       <span className="text-sm text-muted-foreground truncate max-w-[300px] hidden sm:block font-medium">

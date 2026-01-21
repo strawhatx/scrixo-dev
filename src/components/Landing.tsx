@@ -244,7 +244,7 @@ export default function Landing() {
 
                         <div className="space-y-3 h-full">
                             <Link
-                                href="/upload"
+                                href="/edit/new"
                                 className={cn(
                                     "w-full h-full relative overflow-hidden rounded-2xl border transition-all duration-300",
                                     "bg-background cursor-pointer select-none shadow-sm",

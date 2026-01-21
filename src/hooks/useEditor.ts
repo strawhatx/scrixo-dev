@@ -142,10 +142,8 @@ export function useEditor() {
 
           const downloadedFile = new File([data], doc.name, { type: 'application/pdf' });
           setFile(downloadedFile);
-        } else if (!file) {
-          toast.error("No PDF loaded. Please upload a file first.");
-          router.push("/");
         }
+        // Don't redirect if no file - allow user to upload in editor
       } catch (err: any) {
         console.error("Editor init error:", err);
         toast.error("Failed to load document");
