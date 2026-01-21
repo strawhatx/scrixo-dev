@@ -35,14 +35,6 @@ export function AdSidebar() {
         </div>
         <div className="flex-1 p-4 min-h-0 overflow-hidden">
           <div className="w-full h-full flex items-center justify-center">
-            <ins
-              className="adsbygoogle"
-              style={{ display: "block" }}
-              data-ad-client="ca-pub-6117588691065617"
-              data-ad-slot="9784233430"
-              data-ad-format="auto"
-              data-full-width-responsive="true"
-            />
           </div>
         </div>
       </aside>
