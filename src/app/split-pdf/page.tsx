@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Split PDF Pages Online Free - Extract Pages Instantly | Scrixo",
   description: "Split PDF pages online free with no signup required. Extract pages from PDF, separate PDF pages, and cut PDF pages instantly. Free PDF splitter with no watermark.",
   keywords: "split pdf pages online free, extract pages from pdf free, split pdf no signup, separate pdf pages online, cut pdf pages free, split pdf instantly",
+  robots: { index: false, follow: false },
   openGraph: {
     title: "Split PDF Pages Online Free - Extract Pages Instantly",
     description: "Split PDF pages online free with no signup required. Extract pages from PDF, separate PDF pages, and cut PDF pages instantly.",

@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Add Image to PDF Free - Insert Images Online | Scrixo",
   description: "Add image to PDF free with no login required. Insert images into PDF, add logo to PDF, replace images, and edit PDF images online instantly. Free PDF image editor with no watermark.",
   keywords: "add image to pdf free, insert image into pdf online, add logo to pdf free, replace image in pdf online, edit pdf images free, add photo to pdf no watermark",
+  robots: { index: false, follow: false },
   openGraph: {
     title: "Add Image to PDF Free - Insert Images Online",
     description: "Add image to PDF free with no login required. Insert images into PDF, add logo to PDF, replace images, and edit PDF images online instantly.",

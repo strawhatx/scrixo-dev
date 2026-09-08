@@ -189,7 +189,7 @@ function MinimalUploadView({
                 "hover:bg-[#ff4a2a]"
               )}
             >
-              Upload The PDF To Edit
+              Upload your PDF
             </button>
 
             <div className="text-[11px] font-semibold text-muted-foreground/60">

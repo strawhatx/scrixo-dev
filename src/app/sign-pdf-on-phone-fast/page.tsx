@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Sign PDF on Phone Fast - Quick Mobile Signature | Scrixo",
   description: "Sign PDF on phone fast. Add signatures to PDF documents quickly from any phone. Fast, free, and works instantly in your mobile browser.",
   keywords: "sign pdf on phone fast, sign pdf fast, quick pdf signature, fast pdf signer, mobile pdf signature fast, sign pdf quickly, rapid pdf signing",
+  robots: { index: false, follow: false },
   openGraph: {
     title: "Sign PDF on Phone Fast - Quick Mobile Signature",
     description: "Sign PDF on phone fast. Add signatures to PDF documents quickly from any phone. Fast, free, and works instantly in your mobile browser.",

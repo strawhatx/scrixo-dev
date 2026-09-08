@@ -297,7 +297,7 @@ export function useEditor() {
   }, [drawStrokes, fieldOverlays, file, imageOverlays, pageOrder, pageRotations, user, signatureOverlays, params, supabase, router]);
 
   const handleDownload = useCallback(async () => {
-    if (!file) return;
+    if (!file) return false;
     try {
       const pdfBytes = await processPDF(file, signatureOverlays, {
         pageOrder,
@@ -315,11 +315,12 @@ export function useEditor() {
       link.download = `edited_${file.name}`;
       link.click();
       URL.revokeObjectURL(url);
-      toast.success("PDF downloaded successfully!");
+      return true;
     } catch (error) {
       toast.error("Failed to download PDF.");
+      return false;
     }
-  }, [drawStrokes, fieldOverlays, file, imageOverlays, isPro, pageOrder, pageRotations, signatureOverlays]);
+  }, [drawStrokes, fieldOverlays, file, imageOverlays, isPro, pageOrder, pageRotations, signatureOverlays, textOverlays]);
 
   // Page Operations
   const rotatePage = useCallback(async (delta: number = 90) => {

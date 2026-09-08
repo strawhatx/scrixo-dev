@@ -60,23 +60,27 @@ const sigSchoolbell = Schoolbell({ subsets: ["latin"], weight: "400", variable: 
 const sigMsMadi = Ms_Madi({ subsets: ["latin"], weight: "400", variable: "--font-sig-ms-madi" });
 
 export const metadata: Metadata = {
-  title: "Scrixo",
-  description: "Edit PDF documents no signup required",
-  keywords: "edit pdf online, sign pdf free, pdf editor, electronic signature, modify pdf text, free pdf tool",
+  metadataBase: new URL("https://scrixo.com"),
+  title: "Sign a PDF Free — No Account, No Printing | Scrixo",
+  description:
+    "Sign a PDF free in your browser. No account, no printing, no scanning. Draw or type your signature and download a clean file you can send back.",
+  keywords: "sign pdf free, sign a pdf, sign pdf without printing, electronic signature, sign pdf no account, pdf signer",
   openGraph: {
-    title: "Scrixo",
-    description: "Edit PDF documents no signup required",
+    title: "Sign a PDF Free — No Account, No Printing | Scrixo",
+    description:
+      "Sign a PDF free in your browser. No account, no printing, no scanning. Draw or type your signature and download instantly.",
     url: "https://scrixo.com",
     siteName: "Scrixo",
     images: ["https://scrixo.com/og-image.png"],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Scrixo",
-    description: "Edit PDF documents no signup required",
+    title: "Sign a PDF Free — No Account, No Printing | Scrixo",
+    description:
+      "Sign a PDF free in your browser. No account, no printing, no scanning. Draw or type your signature and download instantly.",
     images: ["https://scrixo.com/og-image.png"],
   },
-};;
+};
 
 
 export default function RootLayout({

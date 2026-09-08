@@ -4,16 +4,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { 
   MousePointer2,
-  PenLine, 
-  Pencil,
-  ImageIcon,
+  PenLine,
   FormInput,
   Type,
-  Combine,
-  SplitSquareHorizontal,
-  LayoutGrid,
-  RotateCw,
-  MoreHorizontal,
   Undo2, 
   Redo2,
   Minus,
@@ -51,19 +44,14 @@ interface EditorToolbarProps {
 const tools = [
   { id: "select" as ToolType, icon: MousePointer2, label: "Select" },
   { id: "sign" as ToolType, icon: PenLine, label: "Sign" },
-  { id: "draw" as ToolType, icon: Pencil, label: "Draw" },
-  { id: "image" as ToolType, icon: ImageIcon, label: "Image" },
   { id: "field" as ToolType, icon: FormInput, label: "Field" },
   { id: "text" as ToolType, icon: Type, label: "Text" },
+  // Phase 5 (hidden from v1 sign-focus launch): draw, image
 ];
 
-const actions = [
-  { id: "merge" as ToolType, icon: Combine, label: "Merge" },
-  { id: "split" as ToolType, icon: SplitSquareHorizontal, label: "Split" },
-  { id: "rearrange" as ToolType, icon: LayoutGrid, label: "Rearrange" },
-  { id: "rotate" as ToolType, icon: RotateCw, label: "Rotate" },
-  { id: "more" as ToolType, icon: MoreHorizontal, label: "More" },
-];
+// Phase 5 candidates — ToolType union and Editor handlers stay in place.
+// Merge / split / rearrange / rotate are hidden from the v1 toolbar, not deleted.
+const actions: Array<{ id: ToolType; icon: typeof PenLine; label: string }> = [];
 
 export function EditorToolbar({
   activeTool,
@@ -93,23 +81,26 @@ export function EditorToolbar({
               <span className="text-[10px] font-medium">{tool.label}</span>
             </button>
           ))}
-          
-          <Separator orientation="vertical" className="h-10 mx-2" />
-          
-          {actions.map((action) => (
-            <button
-              key={action.id}
-              onClick={() => onToolChange(action.id)}
-              className={`flex flex-col items-center justify-center px-3 py-1 rounded-lg transition-colors min-w-[48px] ${
-                activeTool === action.id
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <action.icon className="w-5 h-5 mb-0.5" />
-              <span className="text-[10px] font-medium">{action.label}</span>
-            </button>
-          ))}
+
+          {actions.length > 0 && (
+            <>
+              <Separator orientation="vertical" className="h-10 mx-2" />
+              {actions.map((action) => (
+                <button
+                  key={action.id}
+                  onClick={() => onToolChange(action.id)}
+                  className={`flex flex-col items-center justify-center px-3 py-1 rounded-lg transition-colors min-w-[48px] ${
+                    activeTool === action.id
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  <action.icon className="w-5 h-5 mb-0.5" />
+                  <span className="text-[10px] font-medium">{action.label}</span>
+                </button>
+              ))}
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-1">

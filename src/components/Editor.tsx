@@ -17,10 +17,11 @@ import { RearrangeModal } from "@/components/RearrangeModal";
 import { DrawToolsPanel, DrawToolsMobileBar } from "@/components/DrawToolsPanel";
 import { FieldsPanel, FieldsMobileBar } from "@/components/FieldsPanel";
 import { TextToolsPanel } from "@/components/TextToolsPanel";
-import { AdSidebar } from "@/components/AdSidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { PDFUpload } from "@/components/PDFUpload";
 import { useFileStore } from "@/store/useFileStore";
+import { ExportSuccessCapture } from "@/components/ExportSuccessCapture";
+import { hasJoinedWaitlist, WAITLIST_DISMISSED_KEY } from "@/components/WaitlistForm";
 
 /**
  * Staff-Level Editor Component
@@ -31,6 +32,19 @@ export default function Editor() {
   const isMobile = useIsMobile();
   const signToolActivated = React.useRef(false);
   const [pagesSidebarOpen, setPagesSidebarOpen] = React.useState(false);
+  const [showExportCapture, setShowExportCapture] = React.useState(false);
+
+  const handleDownloadAndCapture = async () => {
+    const ok = await editor.handleDownload();
+    if (!ok) return;
+    try {
+      if (hasJoinedWaitlist()) return;
+      if (sessionStorage.getItem(WAITLIST_DISMISSED_KEY) === "1") return;
+    } catch {
+      // ignore storage failures
+    }
+    setShowExportCapture(true);
+  };
 
   // Ensure the editor is a fixed viewport shell; the PDF viewport is the only scroller.
   useEffect(() => {
@@ -95,7 +109,7 @@ export default function Editor() {
   return (
     <div
       className={[
-        "h-dvh bg-background text-foreground flex flex-col xl:flex-row overflow-hidden font-sans",
+        "h-dvh bg-background text-foreground flex flex-col overflow-hidden font-sans relative",
         editor.activeTool === "select" ? "select-text" : "select-none",
       ].join(" ")}
     >
@@ -104,7 +118,7 @@ export default function Editor() {
         <MobileTopControls
           onUndo={editor.undo}
           onRedo={editor.redo}
-          onDownload={editor.handleDownload}
+          onDownload={handleDownloadAndCapture}
           canUndo={editor.historyIndex > 0}
           canRedo={editor.historyIndex < editor.historyLength - 1}
           onMenuClick={() => setPagesSidebarOpen(true)}
@@ -145,7 +159,7 @@ export default function Editor() {
             isFree={!editor.user}
             onSave={editor.handleSave}
             isSaving={editor.isSaving}
-            onDownload={editor.handleDownload}
+            onDownload={handleDownloadAndCapture}
           />
           <EditorToolbar
             activeTool={editor.activeTool}
@@ -337,8 +351,9 @@ export default function Editor() {
           </SheetContent>
         </Sheet>
       </main>
-
-      <AdSidebar />
+      {showExportCapture && (
+        <ExportSuccessCapture onDismiss={() => setShowExportCapture(false)} />
+      )}
     </div>
   );
 }
@@ -365,7 +380,7 @@ function EditorEmptyState() {
   };
 
   return (
-    <div className="h-dvh bg-background text-foreground flex flex-col xl:flex-row overflow-hidden font-sans">
+    <div className="h-dvh bg-background text-foreground flex flex-col overflow-hidden font-sans">
       <main className="flex-1 min-w-0 flex flex-col items-center min-h-0 overflow-hidden">
         {/* Header */}
         <div className="hidden md:block shrink-0 w-full sticky top-0 z-20">
@@ -399,7 +414,7 @@ function EditorEmptyState() {
           </div>
 
           <p className="text-muted-foreground/80 text-lg font-medium max-w-2xl text-center mb-8">
-            Make changes to your PDF files directly in your browser for free no signup required
+            Sign a PDF free in your browser — no account, no printing
           </p>
 
 
@@ -413,8 +428,6 @@ function EditorEmptyState() {
           </div>
         </div>
       </main>
-
-      <AdSidebar />
     </div>
   );
 }
