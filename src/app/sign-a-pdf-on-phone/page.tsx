@@ -33,7 +33,7 @@ export default function SignAPDFOnPhonePage() {
       mainKeyword="Sign a PDF on Your Phone"
       h2Keywords={[]}
       description="Sign a PDF on your phone in seconds. Open this page in Safari or Chrome, add a finger-drawn signature, and download — no App Store or Play Store app."
-      explainer="Most “sign on phone” results want you to install a scanner app so you can photograph a printout. You can skip that: sign the original PDF on the phone you already have."
+      explainer="Most “sign on phone” results want you to install a scanner app so you can photograph a printout. You can skip that: sign the original PDF on the phone you already have. Once the file is open, drawing and placing a signature usually takes about a minute."
       tool="sign"
       howToTitle="How to sign a PDF on your phone"
       howToSteps={[
@@ -59,6 +59,10 @@ export default function SignAPDFOnPhonePage() {
           heading: "No app download",
           body: "You do not need Adobe, CamScanner, or a separate “PDF signer” from the store for a one-off signature. The tool is the page you are on.",
         },
+        {
+          heading: "Sign and send it back from the same sitting",
+          body: "There is no account to create and no file to print. Upload, sign with a finger, download, and attach the PDF to your reply. That is the whole loop — faster than installing an app or photographing a printout.",
+        },
       ]}
       faqs={[
         {
@@ -75,11 +79,16 @@ export default function SignAPDFOnPhonePage() {
           answer:
             "The same steps work on both. Use the [iPhone](/sign-pdf-on-iphone) or [Android](/sign-pdf-on-android) guides if you want OS-specific sharing tips.",
         },
+        {
+          question: "How long does it take to sign a PDF on my phone?",
+          answer:
+            "If you already have the file, most people finish in about a minute: upload, draw a signature, place it, download. The slow part is usually finding the attachment in Mail or Files, not the signing itself.",
+        },
       ]}
       features={[
         "Works on any phone",
         "No app download needed",
-        "Touch-friendly signature pad",
+        "Finger-drawn signature in about a minute",
         "No account required",
         "No watermark",
         "Send the file back from Mail or Gmail",

@@ -20,6 +20,12 @@ const nextConfig: NextConfig = {
         destination: "/sign-pdf",
         statusCode: 301,
       },
+      // Same search intent as /sign-a-pdf-on-phone — do not keep a competing URL.
+      {
+        source: "/sign-pdf-on-phone-fast",
+        destination: "/sign-a-pdf-on-phone",
+        statusCode: 301,
+      },
     ];
   },
 };
