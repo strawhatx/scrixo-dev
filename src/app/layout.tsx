@@ -17,9 +17,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_ORIGIN),
-  title: {
-    default: "Scrixo",
-  },
+  title: "Scrixo",
   icons: {
     icon: [
       { url: BRAND.icon, type: "image/svg+xml" },
