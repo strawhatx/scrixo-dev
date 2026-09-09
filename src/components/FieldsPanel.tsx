@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { CalendarDays, PenLine, TextCursorInput } from "lucide-react";
+import { CalendarDays, CheckSquare, Circle, PenLine, TextCursorInput } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { FieldKind } from "@/types/fields";
@@ -16,6 +16,8 @@ const PLACEABLE_FIELDS: Array<{
   { id: "text", label: "Text Field", Icon: TextCursorInput },
   { id: "signature", label: "Signature", Icon: PenLine },
   { id: "date", label: "Date", Icon: CalendarDays },
+  { id: "checkbox", label: "Checkbox", Icon: CheckSquare },
+  { id: "radio", label: "Radio", Icon: Circle },
 ];
 
 export function FieldsPanel({

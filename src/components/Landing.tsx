@@ -50,57 +50,57 @@ export default function Landing() {
         <div className="mx-auto w-full max-w-6xl px-6">
           <section className="py-16 lg:py-24">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
-            <div className="space-y-6 pt-2">
-              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs font-bold text-muted-foreground">
-                <Shield className="h-4 w-4 text-accent" />
-                No account · No printing · No watermark
+              <div className="space-y-6 pt-2">
+                <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs font-bold text-muted-foreground">
+                  <Shield className="h-4 w-4 text-accent" />
+                  No account · No printing · No watermark
+                </div>
+
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.06]">
+                  Sign a PDF free —{" "}
+                  <span className="text-accent">no account, no printing</span>
+                </h1>
+
+                <p className="text-base md:text-lg text-muted-foreground/80 font-medium max-w-xl">
+                  Draw or type your signature in the browser, place it on the page, and download a
+                  clean PDF you can send back. No printer, no scanner, no signup.
+                </p>
+
+                <ul className="space-y-3 text-sm font-semibold text-muted-foreground/85">
+                  <li className="flex items-start gap-3">
+                    <span className="mt-0.5 h-6 w-6 rounded-full bg-accent/10 text-accent flex items-center justify-center">
+                      <Check className="h-4 w-4" />
+                    </span>
+                    Upload the PDF
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-0.5 h-6 w-6 rounded-full bg-accent/10 text-accent flex items-center justify-center">
+                      <Check className="h-4 w-4" />
+                    </span>
+                    Draw, type, or reuse a signature
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-0.5 h-6 w-6 rounded-full bg-accent/10 text-accent flex items-center justify-center">
+                      <Check className="h-4 w-4" />
+                    </span>
+                    Download and send — no scanning
+                  </li>
+                </ul>
               </div>
 
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.06]">
-                Sign a PDF free —{" "}
-                <span className="text-accent">no account, no printing</span>
-              </h1>
-
-              <p className="text-base md:text-lg text-muted-foreground/80 font-medium max-w-xl">
-                Draw or type your signature in the browser, place it on the page, and download a
-                clean PDF you can send back. No printer, no scanner, no signup.
-              </p>
-
-              <ul className="space-y-3 text-sm font-semibold text-muted-foreground/85">
-                <li className="flex items-start gap-3">
-                  <span className="mt-0.5 h-6 w-6 rounded-full bg-accent/10 text-accent flex items-center justify-center">
-                    <Check className="h-4 w-4" />
-                  </span>
-                  Upload the PDF
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="mt-0.5 h-6 w-6 rounded-full bg-accent/10 text-accent flex items-center justify-center">
-                    <Check className="h-4 w-4" />
-                  </span>
-                  Draw, type, or reuse a signature
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="mt-0.5 h-6 w-6 rounded-full bg-accent/10 text-accent flex items-center justify-center">
-                    <Check className="h-4 w-4" />
-                  </span>
-                  Download and send — no scanning
-                </li>
-              </ul>
-            </div>
-
-            <div className="space-y-3 h-full">
-              <div
-                className={cn(
-                  "w-full h-full relative overflow-hidden rounded-2xl border",
-                  "bg-background shadow-sm border-border/60"
-                )}
-              >
-                <div className="p-6 sm:p-8">
-                  <PDFUpload onFileSelect={handleFileSelect} inputId="home-upload" />
+              <div className="space-y-3 h-full">
+                <div
+                  className={cn(
+                    "w-full h-full relative overflow-hidden rounded-2xl border",
+                    "bg-background shadow-sm border-border/60",
+                  )}
+                >
+                  <div className="p-6 sm:p-8">
+                    <PDFUpload onFileSelect={handleFileSelect} inputId="home-upload" />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
           </section>
         </div>
       </div>
@@ -297,7 +297,7 @@ export default function Landing() {
             Signing on a different device?
           </h2>
           <p className="mt-3 text-center text-muted-foreground">
-            <LinkedCopy text="Same free signer — pick the [Mac](/sign-pdf-on-mac), [Chromebook](/sign-pdf-on-chromebook), or [mobile](/sign-pdf-mobile) guide that matches how you're signing." />
+            <LinkedCopy text={"Same free signer — pick the [Mac](/sign-pdf-on-mac), [Chromebook](/sign-pdf-on-chromebook), or [mobile](/sign-pdf-mobile) guide that matches how you're signing."} />
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             {LAUNCH_LINKS.map((link) => (

@@ -1,5 +1,6 @@
-import { PDFCheckBox, PDFDocument, PDFDropdown, PDFOptionList, PDFRadioGroup, PDFSignature, PDFTextField, StandardFonts, degrees, rgb } from "pdf-lib";
+import { PDFArray, PDFBool, PDFCheckBox, PDFDocument, PDFDropdown, PDFName, PDFOptionList, PDFRadioGroup, PDFSignature, PDFTextField, StandardFonts, degrees, rgb } from "pdf-lib";
 import type { FieldKind } from "@/types/fields";
+import { toPdfDateValue } from "@/lib/form-date";
 import type { TextAlign, TextFontFamily } from "@/lib/text-style";
 
 export type { TextAlign, TextFontFamily } from "@/lib/text-style";
@@ -94,7 +95,13 @@ function standardFontForText(family?: TextFontFamily, bold?: boolean, italic?: b
   return StandardFonts.Helvetica;
 }
 
-function fillImportedAcroForm(pdfDoc: PDFDocument, overlays: FieldOverlay[]) {
+function overlayTextValue(overlay: FieldOverlay): string | undefined {
+  if (typeof overlay.value !== "string") return undefined;
+  if (overlay.kind === "date") return toPdfDateValue(overlay.value) || overlay.value;
+  return overlay.value;
+}
+
+async function fillImportedAcroForm(pdfDoc: PDFDocument, overlays: FieldOverlay[]) {
   const imported = overlays.filter((f) => f.imported);
   if (imported.length === 0) return;
 
@@ -130,17 +137,53 @@ function fillImportedAcroForm(pdfDoc: PDFDocument, overlays: FieldOverlay[]) {
         continue;
       }
       if (field instanceof PDFTextField) {
-        if (typeof primary.value === "string") field.setText(primary.value);
+        const text = overlayTextValue(primary);
+        if (typeof text === "string") {
+          try {
+            field.setText(text);
+          } catch {
+            if (text !== primary.value && typeof primary.value === "string") {
+              try {
+                field.setText(primary.value);
+              } catch {
+                // Flatten below still strips widgets when possible.
+              }
+            }
+          }
+        }
         continue;
       }
       if (field instanceof PDFCheckBox) {
-        if (primary.checked) field.check();
-        else field.uncheck();
+        applyImportedCheckbox(pdfDoc, form, field, widgets);
         continue;
       }
       if (field instanceof PDFRadioGroup) {
-        const selected = widgets.find((w) => w.checked && w.value);
-        if (selected?.value) field.select(selected.value);
+        const selected = widgets.find((w) => w.checked);
+        const candidates = [selected?.value, selected?.name].filter(
+          (v): v is string => typeof v === "string" && v.trim().length > 0
+        );
+        let applied = false;
+        try {
+          const options = field.getOptions();
+          const match = options.find((opt) => candidates.includes(opt));
+          if (match) {
+            field.select(match);
+            applied = true;
+          }
+        } catch {
+          // ignore
+        }
+        if (!applied) {
+          for (const candidate of candidates) {
+            try {
+              field.select(candidate);
+              applied = true;
+              break;
+            } catch {
+              // option name may not match
+            }
+          }
+        }
         continue;
       }
       if (field instanceof PDFDropdown) {
@@ -157,14 +200,209 @@ function fillImportedAcroForm(pdfDoc: PDFDocument, overlays: FieldOverlay[]) {
         if (values.length > 0) field.select(values);
       }
     } catch {
-      // Flatten below still strips widgets when possible.
+      // Keep the widget even if this value cannot be applied.
     }
   }
+}
+
+function pdfOnName(value: unknown): string | undefined {
+  if (typeof value === "string") return value.replace(/^\//, "");
+  if (value && typeof value === "object") {
+    try {
+      const named =
+        (value as { decodeText?: () => string; asString?: () => string }).decodeText?.() ??
+        (value as { asString?: () => string }).asString?.();
+      if (named) return named.replace(/^\//, "");
+    } catch {
+      // ignore
+    }
+  }
+  return undefined;
+}
+
+function lookupFlag(dict: { lookup?: (name: unknown) => unknown } | undefined): number {
+  try {
+    const raw = dict?.lookup?.(PDFName.of("Ff"));
+    if (typeof raw === "number") return raw;
+    if (raw && typeof raw === "object" && "asNumber" in raw) return (raw as { asNumber: () => number }).asNumber();
+  } catch {
+    // ignore
+  }
+  return 0;
+}
+
+function widgetIsRadio(widget: { dict?: { lookup?: (name: unknown) => unknown } }): boolean {
+  const own = lookupFlag(widget.dict);
+  if (own & (1 << 15)) return true;
+  try {
+    const parent = widget.dict?.lookup?.(PDFName.of("Parent")) as { lookup?: (name: unknown) => unknown } | undefined;
+    return Boolean(lookupFlag(parent) & (1 << 15));
+  } catch {
+    return false;
+  }
+}
+
+function applyImportedCheckbox(
+  pdfDoc: PDFDocument,
+  form: ReturnType<PDFDocument["getForm"]>,
+  field: PDFCheckBox,
+  overlays: FieldOverlay[]
+) {
+  let pdfWidgets: ReturnType<PDFCheckBox["acroField"]["getWidgets"]> = [];
+  try {
+    pdfWidgets = field.acroField.getWidgets();
+  } catch {
+    pdfWidgets = [];
+  }
+
+  const onValues = pdfWidgets.map((widget) => pdfOnName(widget.getOnValue?.()));
+  const exclusive =
+    overlays.some((item) => item.kind === "radio") || pdfWidgets.some((widget) => widgetIsRadio(widget as { dict?: { lookup?: (name: unknown) => unknown } }));
+  const independent = !exclusive && pdfWidgets.length > 1 && new Set(onValues.filter(Boolean)).size > 1;
+
+  if (exclusive) {
+    const selected = overlays.find((item) => item.checked);
+    for (let i = 0; i < pdfWidgets.length; i++) {
+      const on = onValues[i] || overlays[i]?.value;
+      try {
+        const dict = (pdfWidgets[i] as { dict?: { set?: (n: unknown, v: unknown) => void } }).dict;
+        dict?.set?.(PDFName.of("AS"), PDFName.of(selected && on && selected.value === on ? on : "Off"));
+      } catch {
+        // ignore
+      }
+    }
+    try {
+      field.acroField.dict.set(PDFName.of("V"), PDFName.of(selected?.value || "Off"));
+    } catch {
+      try {
+        if (selected) field.check();
+        else field.uncheck();
+      } catch {
+        // ignore
+      }
+    }
+    return;
+  }
+
+  if (!independent) {
+    try {
+      if (overlays[0]?.checked) field.check();
+      else field.uncheck();
+    } catch {
+      // ignore
+    }
+    return;
+  }
+
+  const pages = pdfDoc.getPages();
+  const planned = pdfWidgets.map((widget, i) => {
+    const on = onValues[i] || overlays[i]?.value || `checkbox_${i + 1}`;
+    const overlay = overlays.find((item) => item.value === on) ?? overlays[i];
+    const page = pages[Math.max(0, (overlay?.page ?? 1) - 1)];
+    return {
+      rect: widget.getRectangle(),
+      page,
+      name: on,
+      checked: Boolean(overlay?.checked),
+    };
+  });
 
   try {
-    form.flatten({ updateFieldAppearances: true });
+    form.removeField(field);
   } catch {
-    // Copied pages may still carry widget appearances if flatten fails.
+    // still try to create replacements
+  }
+
+  for (const item of planned) {
+    if (!item.page) continue;
+    let name = item.name.replace(/[^a-zA-Z0-9_]+/g, "_") || "checkbox";
+    let n = 1;
+    while (form.getFieldMaybe(name)) {
+      n += 1;
+      name = `${item.name}_${n}`;
+    }
+    try {
+      const cb = form.createCheckBox(name);
+      cb.addToPage(item.page, item.rect);
+      if (item.checked) cb.check();
+      else cb.uncheck();
+    } catch {
+      // ignore a single widget failure
+    }
+  }
+}
+
+function pagesNeedRebuild(
+  pageCount: number,
+  pageOrder?: number[],
+  pageRotations?: Record<number, number>
+) {
+  if (Array.isArray(pageOrder) && pageOrder.length === pageCount) {
+    if (pageOrder.some((n, i) => n !== i + 1)) return true;
+  }
+  if (pageRotations) {
+    for (const value of Object.values(pageRotations)) {
+      if ((((value ?? 0) % 360) + 360) % 360 !== 0) return true;
+    }
+  }
+  return false;
+}
+
+function markNeedAppearances(pdfDoc: PDFDocument) {
+  try {
+    const acro = pdfDoc.catalog.lookup(PDFName.of("AcroForm")) as unknown as { set?: (n: unknown, v: unknown) => void };
+    acro.set?.(PDFName.of("NeedAppearances"), PDFBool.True);
+  } catch {
+    // ignore
+  }
+}
+
+async function updateFormAppearances(pdfDoc: PDFDocument) {
+  try {
+    const form = pdfDoc.getForm();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    form.updateFieldAppearances(font);
+  } catch {
+    // /V is still written; NeedAppearances lets other viewers paint it.
+  }
+  markNeedAppearances(pdfDoc);
+}
+
+function stripWidgetAnnotations(pdfDoc: PDFDocument) {
+  for (const page of pdfDoc.getPages()) {
+    try {
+      const annots = page.node.lookupMaybe(PDFName.of("Annots"), PDFArray);
+      if (!annots) continue;
+      const keep: ReturnType<PDFArray["get"]>[] = [];
+      for (let i = 0; i < annots.size(); i++) {
+        let isWidget = false;
+        try {
+          const annot = annots.lookup(i) as { lookup?: (n: unknown) => { toString?: () => string } | undefined };
+          const subtype = annot.lookup?.(PDFName.of("Subtype"));
+          isWidget = String(subtype ?? "") === "/Widget";
+        } catch {
+          isWidget = false;
+        }
+        if (!isWidget) keep.push(annots.get(i));
+      }
+      const next = PDFArray.withContext(pdfDoc.context);
+      for (const ref of keep) next.push(ref);
+      page.node.set(PDFName.of("Annots"), next);
+    } catch {
+      // ignore
+    }
+  }
+  try {
+    const form = pdfDoc.getForm();
+    for (const field of [...form.getFields()]) {
+      try {
+        form.removeField(field);
+      } catch {
+        // ignore
+      }
+    }
+  } catch {
+    // ignore
   }
 }
 
@@ -189,25 +427,29 @@ export async function processPDF(
 ): Promise<Uint8Array> {
   const arrayBuffer = await file.arrayBuffer();
   const sourceDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-  fillImportedAcroForm(sourceDoc, opts?.fieldOverlays ?? []);
 
   const pageCount = sourceDoc.getPageCount();
   const naturalOrder = Array.from({ length: pageCount }, (_, i) => i + 1);
   const order =
     Array.isArray(opts?.pageOrder) && opts?.pageOrder.length === pageCount ? opts!.pageOrder! : naturalOrder;
+  const rebuild = pagesNeedRebuild(pageCount, opts?.pageOrder, opts?.pageRotations);
 
-  // Rebuild the doc in the requested order so downstream page indexing matches.
-  const pdfDoc = await PDFDocument.create();
+  let pdfDoc = sourceDoc;
   const pageIndexByOriginal = new Map<number, number>();
-  for (let i = 0; i < order.length; i++) {
-    const originalPageNum = order[i];
-    const originalIdx = originalPageNum - 1;
-    pageIndexByOriginal.set(originalPageNum, i);
-    const [copied] = await pdfDoc.copyPages(sourceDoc, [originalIdx]);
-    // Apply per-page rotation, if any (in degrees).
-    const rot = opts?.pageRotations?.[originalPageNum] ?? 0;
-    if (rot) copied.setRotation(degrees(rot));
-    pdfDoc.addPage(copied);
+  if (rebuild) {
+    pdfDoc = await PDFDocument.create();
+    for (let i = 0; i < order.length; i++) {
+      const originalPageNum = order[i];
+      pageIndexByOriginal.set(originalPageNum, i);
+      const [copied] = await pdfDoc.copyPages(sourceDoc, [originalPageNum - 1]);
+      const rot = opts?.pageRotations?.[originalPageNum] ?? 0;
+      if (rot) copied.setRotation(degrees(rot));
+      pdfDoc.addPage(copied);
+    }
+    stripWidgetAnnotations(pdfDoc);
+  } else {
+    for (let i = 1; i <= pageCount; i++) pageIndexByOriginal.set(i, i - 1);
+    await fillImportedAcroForm(pdfDoc, opts?.fieldOverlays ?? []);
   }
 
   const pages = pdfDoc.getPages();
@@ -310,14 +552,20 @@ export async function processPDF(
   if ((opts?.fieldOverlays?.length ?? 0) > 0) {
     const form = pdfDoc.getForm();
     const usedNames = new Set<string>();
+    try {
+      for (const existing of form.getFields()) usedNames.add(existing.getName());
+    } catch {
+      // ignore
+    }
     const radioGroups = new Map<string, { group: any; optionIds: Set<string> }>();
+    const radioSelections: Array<{ group: any; optionId: string }> = [];
     for (const f of opts!.fieldOverlays!) {
       const pageIdx = pageIndexByOriginal.get(f.page) ?? f.page - 1;
       const page = pages[pageIdx];
       if (!page) continue;
       const kind = f.kind ?? "text";
 
-      if (f.imported) {
+      if (f.imported && !rebuild) {
         if (kind === "signature" && typeof f.value === "string" && f.value.startsWith("data:")) {
           const type = inferDataUrlType(f.value);
           const embedded =
@@ -385,12 +633,7 @@ export async function processPDF(
             entry.optionIds.add(optionId);
             entry.group.addOptionToPage(optionId, page, rect);
           }
-
-          try {
-            if (f.checked) entry.group.select?.(optionId);
-          } catch {
-            // ignore
-          }
+          if (f.checked) radioSelections.push({ group: entry.group, optionId });
         } else if (kind === "select") {
           const dd = form.createDropdown(name);
           const options =
@@ -460,9 +703,10 @@ export async function processPDF(
               // ignore
             }
           }
-          if (typeof f.value === "string") {
+          const text = overlayTextValue(f);
+          if (typeof text === "string") {
             try {
-              tf.setText(f.value);
+              tf.setText(text);
             } catch {
               // ignore text setting issues
             }
@@ -479,13 +723,21 @@ export async function processPDF(
             // ignore
           }
         }
-        if (typeof f.value === "string") {
+        const text = overlayTextValue(f);
+        if (typeof text === "string") {
           try {
-            tf.setText(f.value);
+            tf.setText(text);
           } catch {
             // ignore
           }
         }
+      }
+    }
+    for (const sel of radioSelections) {
+      try {
+        sel.group.select(sel.optionId);
+      } catch {
+        // option may already be selected
       }
     }
   }
@@ -538,6 +790,7 @@ export async function processPDF(
     }
   }
 
+  await updateFormAppearances(pdfDoc);
   return await pdfDoc.save();
 }
 

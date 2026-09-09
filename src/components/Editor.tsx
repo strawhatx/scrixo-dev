@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import Link from "next/link";
 import { Download, Loader2, Save } from "lucide-react";
 import { useEditor } from "@/hooks/useEditor";
-import { PDFViewer } from "@/components/PDFViewerClient";
+import { PDFViewer } from "@/components/PDFViewer";
 import { EditorFloatingControls, EditorToolbar, MobileTopControls } from "@/components/EditorToolbar";
 import { SignaturePad } from "./SignaturePad";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import * as pdfjs from "pdfjs-dist/build/pdf.min.mjs";
+import { pdfjs, getPdfDocument } from "@/lib/pdfjs-doc";
 import { motion } from "framer-motion";
 import { Check, ChevronDown, Copy, Loader2, Move, Plus, RotateCcw, RotateCw, SlidersHorizontal, Trash2 } from "lucide-react";
 
@@ -12,14 +12,67 @@ import { TEXT_FONT_STACK } from "@/lib/text-style";
 import { BRAND_NAVY } from "@/lib/colors";
 import type { FieldKind } from "@/types/fields";
 import { Switch } from "./ui/switch";
+import { Calendar } from "./ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { useIsMobile } from "@/hooks/use-mobile";
-
-// Set up PDF.js worker (served from `/public/pdfjs/` via `scripts/copy-pdf-worker.mjs`)
-pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
+import { parseFormDate, toDateDisplay } from "@/lib/form-date";
+import { format } from "date-fns";
 
 const DEFAULT_SIGNATURE_SIZE_PX = { width: 150, height: 50 };
 const FIELD_DRAG_MIME = "application/x-scrixo-field";
 const SELECT_STROKE = BRAND_NAVY;
+
+function DateFieldControl({
+  value,
+  className,
+  onSelectDate,
+  onCommit,
+  onActivate,
+}: {
+  value?: string;
+  className: string;
+  onSelectDate: (iso: string) => void;
+  onCommit?: () => void;
+  onActivate: () => void;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const selected = parseFormDate(value) ?? undefined;
+  const label = toDateDisplay(value);
+  const pick = (day: Date) => {
+    onSelectDate(format(day, "yyyy-MM-dd"));
+    onCommit?.();
+    setOpen(false);
+  };
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={className}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onActivate();
+          }}
+        >
+          {label || "Date"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start" side="bottom">
+        <Calendar mode="single" selected={selected} onSelect={(day) => day && pick(day)} initialFocus />
+        <div className="border-t p-2">
+          <button
+            type="button"
+            className="w-full h-8 rounded-md text-sm font-medium text-primary hover:bg-muted"
+            onClick={() => pick(new Date())}
+          >
+            Today
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 type FieldOverlayWithKind = FieldOverlay & {
   kind?: FieldKind;
   groupName?: string;
@@ -76,7 +129,7 @@ interface PDFViewerProps {
 
   // Fields
   fieldOverlays: FieldOverlayWithKind[];
-  onFieldOverlaysChange: (overlays: FieldOverlayWithKind[]) => void;
+  onFieldOverlaysChange: React.Dispatch<React.SetStateAction<FieldOverlayWithKind[]>>;
   onFieldOverlaysCommit?: () => void;
   fieldKind?: FieldKind;
   placementArmed?: boolean;
@@ -428,9 +481,9 @@ export function PDFViewer(props: PDFViewerProps) {
 
   const updateFieldOverlay = useCallback(
     (page: number, id: string, patch: Partial<FieldOverlayWithKind>) => {
-      onFieldOverlaysChange(fieldOverlays.map((f) => (f.page === page && f.id === id ? { ...f, ...patch } : f)));
+      onFieldOverlaysChange((prev) => prev.map((f) => (f.page === page && f.id === id ? { ...f, ...patch } : f)));
     },
-    [fieldOverlays, onFieldOverlaysChange]
+    [onFieldOverlaysChange]
   );
 
   const updateTextOverlay = useCallback(
@@ -462,8 +515,8 @@ export function PDFViewer(props: PDFViewerProps) {
       if (!target) return;
       const groupName = (target.groupName || target.name || "").trim();
       const nextChecked = !target.checked;
-      onFieldOverlaysChange(
-        fieldOverlays.map((f) => {
+      onFieldOverlaysChange((prev) =>
+        prev.map((f) => {
           if (f.kind !== "radio") return f;
           const fGroup = (f.groupName || f.name || "").trim();
           if (!groupName || fGroup !== groupName) return f;
@@ -661,23 +714,29 @@ export function PDFViewer(props: PDFViewerProps) {
   // -----------------------------
   useEffect(() => {
     let cancelled = false;
-    let loadingTask: pdfjs.PDFDocumentLoadingTask | null = null;
+    let task: { destroy?: () => Promise<void> } | null = null;
 
     const load = async () => {
       setLoading(true);
       try {
-        const arrayBuffer = await file.arrayBuffer();
+        const data = new Uint8Array(await file.arrayBuffer());
         if (cancelled) return;
-        loadingTask = pdfjs.getDocument({ data: arrayBuffer });
-        const pdf = await loadingTask.promise;
-        if (cancelled) return;
-        setPdfDoc(pdf);
-        // Reset cached text content whenever a new PDF is loaded.
+        const opened = await getPdfDocument(data);
+        if (cancelled) {
+          try {
+            await opened.pdf.destroy();
+          } catch {
+            // ignore
+          }
+          return;
+        }
+        task = opened.task;
+        setPdfDoc(opened.pdf);
         setTextItemsByPage({});
         loadedTextPagesRef.current = new Set();
         overlaysNormalizedRef.current = false;
         autoFitDoneRef.current = false;
-        onPageCountChange(pdf.numPages);
+        onPageCountChange(opened.pdf.numPages);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -695,7 +754,7 @@ export function PDFViewer(props: PDFViewerProps) {
     return () => {
       cancelled = true;
       try {
-        loadingTask?.destroy();
+        void task?.destroy?.();
       } catch {
         // ignore
       }
@@ -703,29 +762,14 @@ export function PDFViewer(props: PDFViewerProps) {
   }, [file, onPageCountChange]);
 
   // -----------------------------
-  // Render pages (PDF canvas)
+  // Page layouts (sizes) — commit to DOM before painting canvases
   // -----------------------------
   useEffect(() => {
     if (!pdfDoc) return;
     let cancelled = false;
 
-    const renderAllPages = async () => {
+    const measure = async () => {
       const scale = zoom / 100;
-      const outputScale =
-        typeof window !== "undefined" && window.devicePixelRatio ? window.devicePixelRatio : 1;
-      outputScaleRef.current = outputScale;
-
-      // Cancel any in-flight renders before starting a new pass.
-      for (const task of renderTasksRef.current.values()) {
-        try {
-          task.cancel?.();
-        } catch {
-          // ignore
-        }
-      }
-      renderTasksRef.current.clear();
-
-      // Layouts for each original page number (canvas size needs to be stable)
       const layouts: Array<{
         page: number;
         width: number;
@@ -746,40 +790,70 @@ export function PDFViewer(props: PDFViewerProps) {
           height: viewport.height,
           baseWidth: baseViewport.width,
           baseHeight: baseViewport.height,
-          viewportTransform: viewport.transform as any,
+          viewportTransform: viewport.transform as [number, number, number, number, number, number],
         });
       }
       if (cancelled) return;
       setPageLayouts(layouts);
+    };
 
-      // Auto-fit to width on initial load (only once per PDF load)
-      if (!autoFitDoneRef.current && onZoomChange && layouts.length > 0 && scrollRef.current) {
-        const firstPageLayout = layouts[0];
-        const containerWidth = scrollRef.current.clientWidth;
-        const padding = 48; // 24px padding on each side (p-6)
-        const availableWidth = Math.max(100, containerWidth - padding); // Ensure minimum width
-        if (firstPageLayout.baseWidth > 0 && availableWidth > 0) {
-          const fitZoom = Math.floor((availableWidth / firstPageLayout.baseWidth) * 100);
-          const clampedZoom = Math.max(50, Math.min(200, fitZoom)); // Clamp between 50% and 200%
-          autoFitDoneRef.current = true;
-          // Use setTimeout to avoid state updates during render
-          setTimeout(() => onZoomChange(clampedZoom), 0);
+    void measure();
+    return () => {
+      cancelled = true;
+    };
+  }, [pdfDoc, pageRotations, rotation, zoom]);
+
+  // Auto-fit once the scroll container actually has a width (DevTools resize used to unstick this).
+  useEffect(() => {
+    if (!onZoomChange || pageLayouts.length === 0) return;
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const tryFit = () => {
+      if (autoFitDoneRef.current) return;
+      const first = pageLayouts[0];
+      const availableWidth = Math.max(0, el.clientWidth - 48);
+      if (first.baseWidth <= 0 || availableWidth < 80) return;
+      const fitZoom = Math.floor((availableWidth / first.baseWidth) * 100);
+      autoFitDoneRef.current = true;
+      onZoomChange(Math.max(50, Math.min(200, fitZoom)));
+    };
+
+    tryFit();
+    const ro = new ResizeObserver(tryFit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [onZoomChange, pageLayouts]);
+
+  // Paint canvases after they exist in the DOM
+  useEffect(() => {
+    if (!pdfDoc || pageLayouts.length === 0) return;
+    let cancelled = false;
+
+    const paint = async () => {
+      const outputScale =
+        typeof window !== "undefined" && window.devicePixelRatio ? window.devicePixelRatio : 1;
+      outputScaleRef.current = outputScale;
+
+      for (const task of renderTasksRef.current.values()) {
+        try {
+          task.cancel?.();
+        } catch {
+          // ignore
         }
       }
+      renderTasksRef.current.clear();
 
-      // Wait a frame for canvases to mount.
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      if (cancelled) return;
-
-      // Render sequentially so pages load in order.
-      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+      for (const layout of pageLayouts) {
+        if (cancelled) return;
+        const pageNum = layout.page;
         const canvas = pageCanvasRefs.current.get(pageNum);
         if (!canvas) continue;
         const page = await pdfDoc.getPage(pageNum);
         if (cancelled) return;
 
         const pageRot = (rotation + (pageRotations?.[pageNum] ?? 0)) % 360;
-        const viewport = page.getViewport({ scale, rotation: pageRot });
+        const viewport = page.getViewport({ scale: zoom / 100, rotation: pageRot });
         const ctx = canvas.getContext("2d");
         if (!ctx) continue;
 
@@ -798,11 +872,10 @@ export function PDFViewer(props: PDFViewerProps) {
           annotationMode: (pdfjs as { AnnotationMode?: { DISABLE?: number } }).AnnotationMode?.DISABLE ?? 0,
         };
 
-        const task = page.render(renderContext as any);
+        const task = page.render(renderContext as unknown as Parameters<typeof page.render>[0]);
         renderTasksRef.current.set(pageNum, task);
         try {
           await task.promise;
-          // Generate a lightweight thumbnail for the Pages sidebar.
           try {
             const src = canvas;
             const maxW = 140;
@@ -831,7 +904,7 @@ export function PDFViewer(props: PDFViewerProps) {
       }
     };
 
-    renderAllPages();
+    void paint();
     return () => {
       cancelled = true;
       for (const task of renderTasksRef.current.values()) {
@@ -843,7 +916,7 @@ export function PDFViewer(props: PDFViewerProps) {
       }
       renderTasksRef.current.clear();
     };
-  }, [pdfDoc, pageRotations, rotation, zoom]);
+  }, [pageLayouts, pageRotations, pdfDoc, rotation, zoom]);
 
   // Lazily load text content for the "Select" tool (so it doesn't slow normal editing).
   useEffect(() => {
@@ -2183,7 +2256,7 @@ export function PDFViewer(props: PDFViewerProps) {
                         const kind = f.kind ?? "text";
                         const isDate = kind === "date";
                         const isText = kind === "text";
-                        const isInput = isText || isDate;
+                        const isInput = isText;
                         const isMultiline = Boolean(f.multiline) && isText;
                         const isCheckbox = kind === "checkbox";
                         const isRadio = kind === "radio";
@@ -2198,11 +2271,14 @@ export function PDFViewer(props: PDFViewerProps) {
                           activeOverlay.id === f.id &&
                           activeOverlay.page === pageNum;
                         const fieldIndex = entry.fields.findIndex((x) => x.id === f.id) + 1;
-                        const fieldFill = f.imported
-                          ? "bg-field"
-                          : isSelected
-                            ? "bg-field/80"
-                            : "bg-field/45";
+                        const fieldFill =
+                          isSignature && f.imported && !isSigned
+                            ? "bg-field/20"
+                            : f.imported
+                              ? "bg-field"
+                              : isSelected
+                                ? "bg-field/80"
+                                : "bg-field/45";
                         return (
                           <div
                             key={f.id}
@@ -2238,8 +2314,23 @@ export function PDFViewer(props: PDFViewerProps) {
                               }
                             }}
                           >
-                            {f.imported ? <div className="absolute inset-0 bg-white" aria-hidden /> : null}
-                            {isInput ? (
+                            {f.imported && !(isSignature && !isSigned) ? (
+                              <div className="absolute inset-0 bg-white" aria-hidden />
+                            ) : null}
+                            {isDate ? (
+                              <DateFieldControl
+                                value={f.value}
+                                className={[
+                                  "absolute inset-0 w-full h-full rounded-none border-0 px-2 text-left text-sm text-foreground",
+                                  fieldFill,
+                                  "cursor-pointer",
+                                  !toDateDisplay(f.value) ? "text-muted-foreground" : "",
+                                ].join(" ")}
+                                onActivate={() => setActiveOverlay({ type: "field", id: f.id, page: pageNum })}
+                                onSelectDate={(iso) => updateFieldOverlay(pageNum, f.id, { value: iso })}
+                                onCommit={onFieldOverlaysCommit}
+                              />
+                            ) : isInput ? (
                               isMultiline ? (
                                 <textarea
                                   value={f.value ?? ""}
@@ -2260,8 +2351,8 @@ export function PDFViewer(props: PDFViewerProps) {
                               ) : (
                                 <input
                                   value={f.value ?? ""}
-                                  type={isDate ? "date" : "text"}
-                                  placeholder={isDate ? "" : ""}
+                                  type="text"
+                                  placeholder=""
                                   readOnly={canEditFieldStructure ? !isSelected : false}
                                   className={[
                                     "absolute inset-0 w-full h-full rounded-none border-0 px-2 text-sm text-foreground",
@@ -2390,15 +2481,17 @@ export function PDFViewer(props: PDFViewerProps) {
                                   <img
                                     src={f.value}
                                     alt="Signature"
-                                    className="absolute inset-0 w-full h-full object-contain p-1 pointer-events-none select-none"
+                                    className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
                                     draggable={false}
                                   />
                                 ) : (
                                   <div className={["absolute inset-0 rounded-none", fieldFill].join(" ")} />
                                 )}
-                                <span className="absolute left-1.5 top-1 z-20 rounded px-1 py-px text-[9px] font-bold tracking-[0.14em] text-primary bg-white/90 pointer-events-none">
-                                  SIGN
-                                </span>
+                                {isSigned ? null : (
+                                  <span className="absolute left-1.5 top-1 z-20 rounded px-1 py-px text-[9px] font-bold tracking-[0.14em] text-primary bg-white/90 pointer-events-none">
+                                    SIGN
+                                  </span>
+                                )}
                               </>
                             ) : (
                               <div className={["absolute inset-0 rounded-none", fieldFill].join(" ")} />

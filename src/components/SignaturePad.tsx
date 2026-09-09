@@ -4,7 +4,6 @@ import SignatureCanvas from "react-signature-canvas";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/lib/supabase";
 import { Check, Trash2, Type, PenLine, Upload, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -33,7 +32,6 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
   const sigCanvas = useRef<SignatureCanvas>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
-  const [resolvedUserId, setResolvedUserId] = useState<string | undefined>(undefined);
 
   const [mode, setMode] = useState<SigMode>("draw");
   const [isEmpty, setIsEmpty] = useState(true);
@@ -74,11 +72,6 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
       setUploadDataUrl(null);
       setSelectedSavedId(null);
       setSigStrokeWidth(5);
-      // Resolve logged-in user for signature persistence (DB vs localStorage).
-      supabase.auth
-        .getUser()
-        .then(({ data }) => setResolvedUserId(data?.user?.id))
-        .catch(() => setResolvedUserId(undefined));
     }
   }, [isOpen]);
 
@@ -86,45 +79,16 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
     if (!isOpen) return;
     setLoadingSaved(true);
     try {
-      if (resolvedUserId) {
-        const { data, error } = await supabase
-          .from("signatures")
-          .select("id,label,image_data,created_at")
-          .eq("user_id", resolvedUserId)
-          .order("created_at", { ascending: false });
-        if (error) {
-          // If the table isn't present yet, fall back to guest storage.
-          const msg = String((error as any)?.message ?? "");
-          if (msg.toLowerCase().includes("does not exist")) {
-            const raw = localStorage.getItem(GUEST_SIGNATURES_KEY);
-            const parsed: SavedSignature[] = raw ? JSON.parse(raw) : [];
-            setSaved(parsed);
-          } else {
-            console.warn("Failed to load signatures:", error);
-            setSaved([]);
-          }
-        } else {
-          const mapped: SavedSignature[] =
-            (data ?? []).map((r: any) => ({
-              id: String(r.id),
-              label: r.label ?? null,
-              imageData: String(r.image_data),
-              createdAt: String(r.created_at),
-            })) ?? [];
-          setSaved(mapped);
-        }
-      } else {
-        const raw = localStorage.getItem(GUEST_SIGNATURES_KEY);
-        const parsed: SavedSignature[] = raw ? JSON.parse(raw) : [];
-        setSaved(parsed);
-      }
+      const raw = localStorage.getItem(GUEST_SIGNATURES_KEY);
+      const parsed: SavedSignature[] = raw ? JSON.parse(raw) : [];
+      setSaved(parsed);
     } catch (err) {
       console.warn("Failed to load signatures:", err);
       setSaved([]);
     } finally {
       setLoadingSaved(false);
     }
-  }, [isOpen, resolvedUserId]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -194,60 +158,30 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
       if (!saveForFuture) return;
       const label = fullName.trim() || "Signature";
       const createdAt = new Date().toISOString();
-      if (resolvedUserId) {
-        const { data, error } = await supabase
-          .from("signatures")
-          .insert([{ user_id: resolvedUserId, label, image_data: dataUrl }])
-          .select("id,label,image_data,created_at")
-          .single();
-        if (error) {
-          console.warn("Failed to save signature to DB:", error);
-          // Fall back to guest storage
-          const id = `guest-${Date.now()}`;
-          const next: SavedSignature[] = [{ id, label, imageData: dataUrl, createdAt }, ...saved];
-          setSaved(next);
-          localStorage.setItem(GUEST_SIGNATURES_KEY, JSON.stringify(next));
-          return;
-        }
-        const row: SavedSignature = {
-          id: String((data as any).id),
-          label: (data as any).label ?? null,
-          imageData: String((data as any).image_data),
-          createdAt: String((data as any).created_at),
-        };
-        setSaved((prev) => [row, ...prev]);
-      } else {
-        const id = `guest-${Date.now()}`;
-        const next: SavedSignature[] = [{ id, label, imageData: dataUrl, createdAt }, ...saved];
-        setSaved(next);
+      const id = `guest-${Date.now()}`;
+      const next: SavedSignature[] = [{ id, label, imageData: dataUrl, createdAt }, ...saved];
+      setSaved(next);
+      try {
         localStorage.setItem(GUEST_SIGNATURES_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
       }
     },
-    [fullName, resolvedUserId, saveForFuture, saved]
+    [fullName, saveForFuture, saved]
   );
 
-  const handleDeleteSaved = useCallback(
-    async (id: string) => {
+  const handleDeleteSaved = useCallback(async (id: string) => {
+    setSaved((prev) => {
+      const next = prev.filter((s) => s.id !== id);
       try {
-        if (resolvedUserId) {
-          const { error } = await supabase.from("signatures").delete().eq("id", id).eq("user_id", resolvedUserId);
-          if (error) console.warn("Failed to delete signature:", error);
-        }
-      } finally {
-        setSaved((prev) => {
-          const next = prev.filter((s) => s.id !== id);
-          try {
-            if (!resolvedUserId) localStorage.setItem(GUEST_SIGNATURES_KEY, JSON.stringify(next));
-          } catch {
-            // ignore
-          }
-          return next;
-        });
-        if (selectedSavedId === id) setSelectedSavedId(null);
+        localStorage.setItem(GUEST_SIGNATURES_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
       }
-    },
-    [resolvedUserId, selectedSavedId]
-  );
+      return next;
+    });
+    if (selectedSavedId === id) setSelectedSavedId(null);
+  }, [selectedSavedId]);
 
   const handlePlace = useCallback(async () => {
     let dataUrl: string | null = null;
