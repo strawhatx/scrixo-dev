@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 const PATH = "/sign-pdf-on-iphone";
@@ -15,9 +16,11 @@ export const metadata: Metadata = {
     description: "Sign a PDF on iPhone in Safari. No App Store app. Finger signature, then send from Mail.",
     url: `https://scrixo.com${PATH}`,
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "Sign a PDF on iPhone (Safari, No App)",
     description: "Sign a PDF on iPhone in Safari. No App Store app. Finger signature, then send from Mail.",
   },
@@ -54,7 +57,7 @@ export default function SignPDFOniPhonePage() {
         },
         {
           heading: "Mail attachments",
-          body: "Mail’s Markup signature is fine when it appears. When it does not — or when you want a signature that is not stored in iCloud Markup — use this page, then attach the new file to the same thread.",
+          body: "Mail’s Markup signature is fine when it appears. When it does not — or when you want a signature that is not stored in iCloud Markup — use this page, then attach the new file to the same thread. On Android instead? See the [Android guide](/sign-pdf-on-android). Any phone: [sign a PDF on your phone](/sign-a-pdf-on-phone).",
         },
       ]}
       faqs={[

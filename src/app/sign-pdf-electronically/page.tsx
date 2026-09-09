@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 export const metadata: Metadata = {
@@ -11,9 +12,11 @@ export const metadata: Metadata = {
     description: "Sign PDF electronically with digital signatures. Add electronic signatures to PDF documents instantly. Free, secure, and legally valid electronic signatures.",
     url: "https://scrixo.com/sign-pdf-electronically",
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "Sign PDF Electronically - Digital Signature Tool",
     description: "Sign PDF electronically with digital signatures. Add electronic signatures to PDF documents instantly. Free, secure, and legally valid electronic signatures.",
   },

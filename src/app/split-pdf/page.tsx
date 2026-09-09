@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 export const metadata: Metadata = {
@@ -11,9 +12,11 @@ export const metadata: Metadata = {
     description: "Split PDF pages online free with no signup required. Extract pages from PDF, separate PDF pages, and cut PDF pages instantly.",
     url: "https://scrixo.com/split-pdf",
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "Split PDF Pages Online Free - Extract Pages Instantly",
     description: "Split PDF pages online free with no signup required. Extract pages from PDF, separate PDF pages, and cut PDF pages instantly.",
   },

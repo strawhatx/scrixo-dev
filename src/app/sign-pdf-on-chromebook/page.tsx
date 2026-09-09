@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 const PATH = "/sign-pdf-on-chromebook";
@@ -16,9 +17,11 @@ export const metadata: Metadata = {
       "Sign a PDF on a Chromebook in Chrome. No Android app, no printer. Chrome’s built-in viewer cannot add a signature — this tool can.",
     url: `https://scrixo.com${PATH}`,
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "Sign a PDF on a Chromebook (No App)",
     description:
       "Sign a PDF on a Chromebook in Chrome. No Android app, no printer. Chrome’s built-in viewer cannot add a signature — this tool can.",
@@ -60,7 +63,7 @@ export default function SignPDFOnChromebookPage() {
         },
         {
           heading: "Touchscreen, trackpad, or mouse",
-          body: "Convertible Chromebooks can sign with a finger. Clamshells can use the trackpad. The download is a normal PDF that opens in Chrome’s viewer afterward so you can confirm the signature landed on the line before you send it.",
+          body: "Convertible Chromebooks can sign with a finger. Clamshells can use the trackpad. The download is a normal PDF that opens in Chrome’s viewer afterward so you can confirm the signature landed on the line before you send it. On a [Mac](/sign-pdf-on-mac) or [phone](/sign-a-pdf-on-phone) instead? Same browser tool, different device notes.",
         },
       ]}
       faqs={[

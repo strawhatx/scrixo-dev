@@ -5,15 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Check,
-  FileText,
-  FormInput,
-  ImageIcon,
-  PenLine,
-  Pencil,
-  Combine,
-  SplitSquareHorizontal,
-  LayoutGrid,
-  RotateCw,
   Shield,
   Sparkles,
   Zap,
@@ -31,8 +22,10 @@ import {
 } from "@/components/ui/accordion";
 import { useFileStore } from "@/store/useFileStore";
 import { cn } from "@/lib/utils";
+import { LinkedCopy } from "@/components/LinkedCopy";
+import { BrandLogo } from "@/components/BrandLogo";
 import type { ContentSection, FAQItem, HowToStep, RelatedLink } from "@/lib/seo-content";
-import { DEFAULT_SIGN_STEPS, relatedLinksFor } from "@/lib/seo-content";
+import { DEFAULT_SIGN_STEPS, relatedLinksFor, stripMdLinks } from "@/lib/seo-content";
 
 interface SEOToolPageProps {
   mainKeyword: string;
@@ -50,17 +43,6 @@ interface SEOToolPageProps {
   uploadHint?: string;
   pathname?: string;
 }
-
-const toolIcons = {
-  sign: PenLine,
-  draw: Pencil,
-  field: FormInput,
-  image: ImageIcon,
-  merge: Combine,
-  split: SplitSquareHorizontal,
-  rearrange: LayoutGrid,
-  rotate: RotateCw,
-};
 
 const TOOL_GRADIENT = "from-primary/5 to-white";
 
@@ -83,7 +65,6 @@ export function SEOToolPage({
   const setFile = useFileStore((state) => state.setFile);
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const ToolIcon = toolIcons[tool] || FileText;
   const isSign = tool === "sign";
   const steps = howToSteps ?? (isSign ? DEFAULT_SIGN_STEPS : undefined);
   const links = relatedLinks ?? (pathname ? relatedLinksFor(pathname) : relatedLinksFor(""));
@@ -115,7 +96,7 @@ export function SEOToolPage({
           "@type": "HowToStep",
           position: index + 1,
           name: step.name,
-          text: step.text,
+          text: stripMdLinks(step.text),
         })),
       });
     }
@@ -127,7 +108,7 @@ export function SEOToolPage({
           name: faq.question,
           acceptedAnswer: {
             "@type": "Answer",
-            text: faq.answer,
+            text: stripMdLinks(faq.answer),
           },
         })),
       });
@@ -140,7 +121,7 @@ export function SEOToolPage({
   }, [description, faqs, howToTitle, mainKeyword, steps]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
+    <div className="min-h-screen bg-brand-hero text-foreground flex flex-col font-sans">
       {jsonLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       )}
@@ -149,14 +130,7 @@ export function SEOToolPage({
         <div className="w-full max-w-4xl space-y-8 sm:space-y-12">
           <div className="text-center space-y-6">
             <div className="flex justify-center">
-              <div
-                className={cn(
-                  "h-20 w-20 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg",
-                  TOOL_GRADIENT
-                )}
-              >
-                <ToolIcon className="h-10 w-10 text-accent" />
-              </div>
+              <BrandLogo variant="mark" className="h-20 w-20 shadow-lg" />
             </div>
 
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight text-foreground px-2">
@@ -207,7 +181,7 @@ export function SEOToolPage({
 
           {explainer && (
             <p className="text-base sm:text-lg text-muted-foreground leading-relaxed px-4 max-w-3xl mx-auto">
-              {explainer}
+              <LinkedCopy text={explainer} />
             </p>
           )}
 
@@ -272,7 +246,7 @@ export function SEOToolPage({
                     {section.heading}
                   </h2>
                   <p className="text-base text-muted-foreground leading-relaxed whitespace-pre-line">
-                    {section.body}
+                    <LinkedCopy text={section.body} />
                   </p>
                 </Card>
               ))}
@@ -326,7 +300,7 @@ export function SEOToolPage({
                       {faq.question}
                     </AccordionTrigger>
                     <AccordionContent className="text-muted-foreground leading-relaxed">
-                      {faq.answer}
+                      <LinkedCopy text={faq.answer} />
                     </AccordionContent>
                   </AccordionItem>
                 ))}
@@ -340,7 +314,7 @@ export function SEOToolPage({
                 Signing on a different device?
               </h2>
               <p className="text-center text-muted-foreground">
-                Same tool, same free download — pick the guide that matches how you&apos;re signing.
+                <LinkedCopy text="Same tool, same free download — pick the [Mac](/sign-pdf-on-mac), [Chromebook](/sign-pdf-on-chromebook), or [phone](/sign-a-pdf-on-phone) guide. Need to [fill the form](/fill-pdf) first, or [sign and send it back](/how-to-sign-pdf-and-send-back)?" />
               </p>
               <div className="flex flex-wrap justify-center gap-3">
                 {links.map((link) => (

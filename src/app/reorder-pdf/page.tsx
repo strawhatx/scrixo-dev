@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 export const metadata: Metadata = {
@@ -11,9 +12,11 @@ export const metadata: Metadata = {
     description: "Reorder PDF pages online for free with no login required. Rearrange PDF pages, move pages in PDF, organize PDF pages, and change page order instantly.",
     url: "https://scrixo.com/reorder-pdf",
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "Reorder PDF Pages Online - Rearrange Pages Free",
     description: "Reorder PDF pages online for free with no login required. Rearrange PDF pages, move pages in PDF, organize PDF pages, and change page order instantly.",
   },

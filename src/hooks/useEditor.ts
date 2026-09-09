@@ -19,6 +19,7 @@ import {
 import { ToolType } from "@/components/EditorToolbar";
 import type { FieldKind } from "@/types/fields";
 import { checkRateLimit, recordRateLimit } from "@/lib/rate-limiter";
+import { extractAcroFormFields } from "@/lib/acroform";
 
 
 export function useEditor() {
@@ -32,15 +33,16 @@ export function useEditor() {
   const [isSaving, setIsSaving] = useState(false);
   
   // Tool & View State - Initialize from URL param if present
-  const [activeTool, setActiveTool] = useState<ToolType>("sign");
+  const [activeTool, setActiveTool] = useState<ToolType>("select");
   const toolParamProcessed = useRef(false);
+  const acroToastKeyRef = useRef<string | null>(null);
   
   // Read initial tool from URL on mount and activate it
   useEffect(() => {
     if (typeof window !== "undefined" && file && !loading && !toolParamProcessed.current) {
       const urlParams = new URLSearchParams(window.location.search);
       const toolParam = urlParams.get("tool") as ToolType;
-      if (toolParam && ["sign", "draw", "field", "image", "text", "merge", "split", "rearrange", "rotate"].includes(toolParam)) {
+      if (toolParam && toolParam !== "sign" && ["draw", "field", "image", "text", "merge", "split", "rearrange", "rotate"].includes(toolParam)) {
         toolParamProcessed.current = true;
         if (["merge", "split", "rearrange", "rotate"].includes(toolParam)) {
           // For modal tools, open the modal
@@ -188,6 +190,41 @@ export function useEditor() {
     // Ensure currentPage is always valid.
     setCurrentPage((p) => Math.min(Math.max(1, p), totalPages));
   }, [totalPages, router]);
+
+  // Import existing AcroForm widgets as editable overlays.
+  useEffect(() => {
+    if (!file) {
+      setFieldOverlays([]);
+      acroToastKeyRef.current = null;
+      return;
+    }
+    const fileKey = `${file.name}:${file.size}:${file.lastModified}`;
+    setFieldOverlays([]);
+    let cancelled = false;
+
+    extractAcroFormFields(file)
+      .then((fields) => {
+        if (cancelled) return;
+        if (fields.length === 0) return;
+        setFieldOverlays((prev) => {
+          const userPlaced = prev.filter((f) => !f.imported);
+          return [...fields, ...userPlaced];
+        });
+        if (acroToastKeyRef.current !== fileKey) {
+          acroToastKeyRef.current = fileKey;
+          toast.success(
+            fields.length === 1 ? "Found 1 fillable field on this PDF" : `Found ${fields.length} fillable fields on this PDF`
+          );
+        }
+      })
+      .catch(() => {
+        // PDFs without a usable AcroForm are fine.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [file]);
 
   // History Actions
   const saveToHistory = useCallback(() => {

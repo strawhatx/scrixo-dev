@@ -5,7 +5,6 @@ import {
   ArrowDownToLine,
   Check,
   FileText,
-  Layers,
   MousePointer2,
   PenLine,
   PenTool,
@@ -23,6 +22,15 @@ import { PDFUpload } from "@/components/PDFUpload";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WaitlistFooter } from "@/components/WaitlistForm";
 import { useFileStore } from "@/store/useFileStore";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { LinkedCopy } from "@/components/LinkedCopy";
+import { BrandLogo } from "@/components/BrandLogo";
+import { HOME_FAQS, LAUNCH_LINKS } from "@/lib/seo-content";
 
 export default function Landing() {
   const year = useMemo(() => new Date().getFullYear(), []);
@@ -36,11 +44,12 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans select-none">
-      <SiteHeader />
+      <div className="bg-brand-hero min-h-[100svh]">
+        <SiteHeader />
 
-      <main className="mx-auto w-full max-w-6xl px-6">
-        <section className="py-14 lg:py-20">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
+        <div className="mx-auto w-full max-w-6xl px-6">
+          <section className="py-16 lg:py-24">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
             <div className="space-y-6 pt-2">
               <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs font-bold text-muted-foreground">
                 <Shield className="h-4 w-4 text-accent" />
@@ -92,8 +101,11 @@ export default function Landing() {
               </div>
             </div>
           </div>
-        </section>
+          </section>
+        </div>
+      </div>
 
+      <main className="mx-auto w-full max-w-6xl px-6">
         <section className="py-14 border-t border-border/60">
           <div className="flex items-end justify-between gap-6 mb-8">
             <div className="space-y-2">
@@ -152,9 +164,15 @@ export default function Landing() {
               <p className="text-gray-600 text-center mb-5 text-sm">
                 Sign with a finger in Safari or Chrome. No App Store download required.
               </p>
-              <div className="flex justify-center">
+              <div className="flex justify-center gap-3">
                 <Link href="/sign-a-pdf-on-phone" className="text-sm font-bold text-accent hover:underline">
-                  Open the guide →
+                  Phone
+                </Link>
+                <Link href="/sign-pdf-on-iphone" className="text-sm font-bold text-accent hover:underline">
+                  iPhone
+                </Link>
+                <Link href="/sign-pdf-on-android" className="text-sm font-bold text-accent hover:underline">
+                  Android
                 </Link>
               </div>
             </Card>
@@ -231,7 +249,9 @@ export default function Landing() {
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="h-4 w-4 mt-0.5 text-primary" />
-                  Fill blanks, then sign, in the same file
+                  <Link href="/fill-pdf" className="text-accent hover:underline">
+                    Fill blanks, then sign, in the same file
+                  </Link>
                 </li>
               </ul>
             </div>
@@ -255,6 +275,44 @@ export default function Landing() {
         </section>
 
         <section className="py-14 border-t border-border/60">
+          <h2 className="text-2xl md:text-3xl font-black tracking-tight text-center">
+            Frequently asked questions
+          </h2>
+          <Accordion type="single" collapsible className="w-full max-w-3xl mx-auto mt-8">
+            {HOME_FAQS.map((faq, index) => (
+              <AccordionItem key={faq.question} value={`home-faq-${index}`}>
+                <AccordionTrigger className="text-left text-base sm:text-lg font-semibold">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground leading-relaxed">
+                  <LinkedCopy text={faq.answer} />
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </section>
+
+        <section className="py-14 border-t border-border/60">
+          <h2 className="text-2xl md:text-3xl font-black tracking-tight text-center">
+            Signing on a different device?
+          </h2>
+          <p className="mt-3 text-center text-muted-foreground">
+            <LinkedCopy text="Same free signer — pick the [Mac](/sign-pdf-on-mac), [Chromebook](/sign-pdf-on-chromebook), or [mobile](/sign-pdf-mobile) guide that matches how you're signing." />
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            {LAUNCH_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:border-accent/50 hover:text-accent transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <section className="py-14 border-t border-border/60">
           <div className="rounded-3xl border border-border bg-card p-10 text-center space-y-4">
             <h2 className="text-2xl md:text-4xl font-black tracking-tight">Sign your PDF in seconds</h2>
             <div className="flex flex-col items-center gap-3">
@@ -269,7 +327,7 @@ export default function Landing() {
         <WaitlistFooter />
         <footer className="py-10 border-t border-border/60 text-center text-xs text-muted-foreground/60 font-semibold">
           <div className="flex items-center justify-center gap-2">
-            <Layers className="h-4 w-4" />
+            <BrandLogo variant="mark" className="h-8 w-8" />
             <span>© {year} scrixo</span>
           </div>
         </footer>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 export const metadata: Metadata = {
@@ -11,9 +12,11 @@ export const metadata: Metadata = {
     description: "Sign PDF on phone fast. Add signatures to PDF documents quickly from any phone. Fast, free, and works instantly in your mobile browser.",
     url: "https://scrixo.com/sign-pdf-on-phone-fast",
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "Sign PDF on Phone Fast - Quick Mobile Signature",
     description: "Sign PDF on phone fast. Add signatures to PDF documents quickly from any phone. Fast, free, and works instantly in your mobile browser.",
   },

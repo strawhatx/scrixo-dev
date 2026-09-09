@@ -70,19 +70,28 @@ export async function POST(request: Request) {
   try {
     const response = await fetch(webhook, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8",
+        "User-Agent": "scrixo-waitlist",
+      },
       body: JSON.stringify(payload),
       redirect: "manual",
     });
 
-    // Apps Script web apps often 302 after POST; following that redirect turns it into a GET.
-    if (!response.ok && response.status !== 302 && response.status !== 303) {
-      return NextResponse.json(
-        { ok: false, error: "Could not save that address. Try again in a moment." },
-        { status: 502 },
-      );
+    const status = response.status;
+    // Apps Script web apps 302 after POST. Following that redirect becomes a GET
+    // (often 405). Status 0 is an opaque redirect in some fetch implementations.
+    const redirected = status === 0 || (status >= 300 && status < 400) || status === 405;
+    if (!response.ok && !redirected) {
+      console.error("[waitlist] sheets webhook failed", status);
+      const error =
+        status === 401
+          ? "Google blocked the waitlist webhook (401). Redeploy the Apps Script web app: Execute as Me, Who has access = Anyone, then paste the new /exec URL into GOOGLE_SHEETS_WEBHOOK_URL."
+          : "Could not save that address. Try again in a moment.";
+      return NextResponse.json({ ok: false, error }, { status: 502 });
     }
-  } catch {
+  } catch (err) {
+    console.error("[waitlist] sheets webhook unreachable", err);
     return NextResponse.json(
       { ok: false, error: "Could not reach the waitlist sheet." },
       { status: 502 },

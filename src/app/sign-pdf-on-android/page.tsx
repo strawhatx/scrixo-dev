@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 const PATH = "/sign-pdf-on-android";
@@ -15,9 +16,11 @@ export const metadata: Metadata = {
     description: "Sign a PDF on Android in Chrome. No Play Store app. Finger or stylus, then download.",
     url: `https://scrixo.com${PATH}`,
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "Sign a PDF on Android (Chrome, No App)",
     description: "Sign a PDF on Android in Chrome. No Play Store app. Finger or stylus, then download.",
   },
@@ -54,7 +57,7 @@ export default function SignPDFOnAndroidPage() {
         },
         {
           heading: "Stylus and Samsung DeX",
-          body: "An S Pen or other stylus gives a cleaner signature than a finger. The file is still a normal PDF afterward. Signing on a Chromebook? Use the Chromebook guide — that is Chrome OS, not Android-in-a-phone.",
+          body: "An S Pen or other stylus gives a cleaner signature than a finger. The file is still a normal PDF afterward. Signing on a Chromebook? Use the [Chromebook guide](/sign-pdf-on-chromebook) — that is Chrome OS, not Android-in-a-phone.",
         },
       ]}
       faqs={[

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 const PATH = "/sign-pdf-on-mac";
@@ -16,9 +17,11 @@ export const metadata: Metadata = {
       "Sign a PDF on Mac in your browser, or use Preview’s trackpad, camera, and Mail options. Free, no account, no printing.",
     url: `https://scrixo.com${PATH}`,
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "How to Sign a PDF on Mac (Trackpad, Preview, Mail)",
     description:
       "Sign a PDF on Mac in your browser, or use Preview’s trackpad, camera, and Mail options. Free, no account, no printing.",
@@ -64,7 +67,7 @@ export default function SignPDFOnMacPage() {
         },
         {
           heading: "Using Preview on Mac",
-          body: "To add a signature in Preview on Mac: open the PDF → Markup toolbar (pen tip icon) → Signature → Create Signature, then choose Trackpad or Camera. Click the line to stamp it, File → Export to keep a copy. If Preview’s signature tool is missing, greyed out, or you are on a shared Mac, use the browser tool on this page instead — it does not depend on Preview’s Markup extras.",
+          body: "To add a signature in Preview on Mac: open the PDF → Markup toolbar (pen tip icon) → Signature → Create Signature, then choose Trackpad or Camera. Click the line to stamp it, File → Export to keep a copy. If Preview’s signature tool is missing, greyed out, or you are on a shared Mac, use the browser tool on this page instead — it does not depend on Preview’s Markup extras. Signing on a [Chromebook](/sign-pdf-on-chromebook) or [phone](/sign-a-pdf-on-phone) instead? Those guides use the same browser signer.",
         },
       ]}
       faqs={[

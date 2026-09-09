@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 const PATH = "/sign-pdf-without-printing";
@@ -16,9 +17,11 @@ export const metadata: Metadata = {
       "Sign a PDF without printing and scanning. Add an electronic signature in your browser and send the file back — no printer required.",
     url: `https://scrixo.com${PATH}`,
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "Sign a PDF Without Printing and Scanning",
     description:
       "Sign a PDF without printing and scanning. Add an electronic signature in your browser and send the file back — no printer required.",
@@ -56,7 +59,7 @@ export default function SignPDFWithoutPrintingPage() {
         },
         {
           heading: "Sign the PDF digitally, then send it",
-          body: "Upload the document, add your signature (and fill any blanks first if you need to), then download. The person who sent you the form gets a signed PDF back — not a scan of a printout. If you are on a phone, Mac, or Chromebook, the same steps apply in the browser.",
+          body: "Upload the document, add your signature (and [fill any blanks](/fill-pdf) first if you need to), then download. The person who sent you the form gets a signed PDF back — not a scan of a printout. Signing on a [phone](/sign-a-pdf-on-phone), [Mac](/sign-pdf-on-mac), or [Chromebook](/sign-pdf-on-chromebook)? Same steps in the browser.",
         },
         {
           heading: "No printer, no paper, no account",

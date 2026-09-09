@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 export const metadata: Metadata = {
@@ -11,9 +12,11 @@ export const metadata: Metadata = {
     description: "Merge PDF files online free with no login required. Combine multiple PDFs into one document instantly.",
     url: "https://scrixo.com/merge-pdf",
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "Merge PDF Files Online Free - Combine PDFs Instantly",
     description: "Merge PDF files online free with no login required. Combine multiple PDFs into one document instantly.",
   },

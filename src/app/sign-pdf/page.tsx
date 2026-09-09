@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 const PATH = "/sign-pdf";
@@ -15,9 +16,11 @@ export const metadata: Metadata = {
     description: "Sign a PDF online free. No login, no printing, no watermark. Draw or type your signature and download instantly.",
     url: `https://scrixo.com${PATH}`,
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "Sign PDF Online Free — No Account Required",
     description: "Sign a PDF online free. No login, no printing, no watermark. Draw or type your signature and download instantly.",
   },
@@ -44,7 +47,7 @@ export default function SignPDFPage() {
         },
         {
           heading: "Send the signed PDF back",
-          body: "Attach the downloaded file to the same email or portal that sent you the original. There is nothing to print or scan. Need device-specific steps? See the Mac, Chromebook, and phone guides.",
+          body: "Attach the downloaded file to the same email or portal that sent you the original. There is nothing to print or scan. Need device-specific steps? See the [Mac](/sign-pdf-on-mac), [Chromebook](/sign-pdf-on-chromebook), and [phone](/sign-a-pdf-on-phone) guides — or [how to sign a PDF and send it back](/how-to-sign-pdf-and-send-back).",
         },
       ]}
       faqs={[
@@ -54,11 +57,18 @@ export default function SignPDFPage() {
         },
         {
           question: "Do I need to print the document first?",
-          answer: "No. Sign the PDF on screen and send the file back. See the without-printing guide if that is the whole problem you are solving.",
+          answer:
+            "No. Sign the PDF on screen and send the file back. See [how to sign a PDF without printing](/sign-pdf-without-printing) if that is the whole problem you are solving.",
         },
         {
           question: "Can I fill the form and sign it?",
-          answer: "Yes. Use Fill & sign to add text, then switch to Sign to place your signature on the same PDF.",
+          answer:
+            "Yes. Use [Fill & sign](/fill-pdf) to add text, then switch to Sign to place your signature on the same PDF.",
+        },
+        {
+          question: "How do I send the signed PDF back?",
+          answer:
+            "Download the file and attach it to the same email or portal. Step-by-step: [how to sign a PDF and send it back](/how-to-sign-pdf-and-send-back).",
         },
       ]}
       features={[

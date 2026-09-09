@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 const PATH = "/sign-a-pdf-on-phone";
@@ -15,9 +16,11 @@ export const metadata: Metadata = {
     description: "Sign a PDF on your phone in the browser. No app. Draw with your finger and download.",
     url: `https://scrixo.com${PATH}`,
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "Sign a PDF on Your Phone (No App)",
     description: "Sign a PDF on your phone in the browser. No app. Draw with your finger and download.",
   },
@@ -50,7 +53,7 @@ export default function SignAPDFOnPhonePage() {
       sections={[
         {
           heading: "Works on any phone browser",
-          body: "iPhone, Android, and other phones that run a modern browser can sign here. For iPhone-specific Safari notes see the iPhone guide; for Chrome on Android see the Android guide.",
+          body: "iPhone, Android, and other phones that run a modern browser can sign here. For iPhone-specific Safari notes see the [iPhone guide](/sign-pdf-on-iphone); for Chrome on Android see the [Android guide](/sign-pdf-on-android).",
         },
         {
           heading: "No app download",
@@ -69,7 +72,8 @@ export default function SignAPDFOnPhonePage() {
         },
         {
           question: "iPhone or Android — does it matter?",
-          answer: "The same steps work on both. Use the iPhone or Android guides if you want OS-specific sharing tips.",
+          answer:
+            "The same steps work on both. Use the [iPhone](/sign-pdf-on-iphone) or [Android](/sign-pdf-on-android) guides if you want OS-specific sharing tips.",
         },
       ]}
       features={[

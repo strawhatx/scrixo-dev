@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 const PATH = "/how-to-sign-pdf-and-send-back";
@@ -15,9 +16,11 @@ export const metadata: Metadata = {
     description: "Sign a PDF and send it back in three steps: upload, sign, download. No printing or scanning.",
     url: `https://scrixo.com${PATH}`,
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "How to Sign a PDF and Send It Back",
     description: "Sign a PDF and send it back in three steps: upload, sign, download. No printing or scanning.",
   },
@@ -50,7 +53,7 @@ export default function HowToSignPDFAndSendBackPage() {
       sections={[
         {
           heading: "Email it back as a PDF, not a photo",
-          body: "A signed PDF opens in any reader and keeps the original layout. A camera shot of a printout is harder to file and often unreadable. If you are on a phone, Mac, or Chromebook, use those device guides — the send-back step is the same.",
+          body: "A signed PDF opens in any reader and keeps the original layout. A camera shot of a printout is harder to file and often unreadable. Signing on a [phone](/sign-a-pdf-on-phone), [Mac](/sign-pdf-on-mac), or [Chromebook](/sign-pdf-on-chromebook)? Use those device guides — the send-back step is the same.",
         },
       ]}
       faqs={[
@@ -61,7 +64,8 @@ export default function HowToSignPDFAndSendBackPage() {
         },
         {
           question: "Do I need to print it first?",
-          answer: "No. See the without-printing guide if that is the whole question.",
+          answer:
+            "No. See [how to sign a PDF without printing](/sign-pdf-without-printing) if that is the whole question.",
         },
         {
           question: "Will they know I signed it digitally?",

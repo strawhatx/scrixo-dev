@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 export const metadata: Metadata = {
@@ -11,9 +12,11 @@ export const metadata: Metadata = {
     description: "Rotate PDF pages online free with no login required. Turn PDF pages upright, fix sideways PDFs, rotate scanned PDFs, and rotate PDF instantly.",
     url: "https://scrixo.com/rotate-pdf",
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "Rotate PDF Pages Online Free - Fix Sideways PDFs",
     description: "Rotate PDF pages online free with no login required. Turn PDF pages upright, fix sideways PDFs, rotate scanned PDFs, and rotate PDF instantly.",
   },

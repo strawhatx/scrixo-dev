@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import Link from "next/link";
-import { Download, FileText, Loader2, Save, ScrollText } from "lucide-react";
+import { Download, Loader2, Save } from "lucide-react";
 import { useEditor } from "@/hooks/useEditor";
 import { PDFViewer } from "@/components/PDFViewerClient";
 import { EditorFloatingControls, EditorToolbar, MobileTopControls } from "@/components/EditorToolbar";
@@ -22,7 +22,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { PDFUpload } from "@/components/PDFUpload";
 import { useFileStore } from "@/store/useFileStore";
 import { ExportSuccessCapture } from "@/components/ExportSuccessCapture";
-import { hasJoinedWaitlist, WAITLIST_DISMISSED_KEY } from "@/components/WaitlistForm";
+import { hasJoinedWaitlist } from "@/components/WaitlistForm";
+import { BrandLogo } from "@/components/BrandLogo";
 
 /**
  * Staff-Level Editor Component
@@ -31,7 +32,6 @@ import { hasJoinedWaitlist, WAITLIST_DISMISSED_KEY } from "@/components/Waitlist
 export default function Editor() {
   const editor = useEditor();
   const isMobile = useIsMobile();
-  const signToolActivated = React.useRef(false);
   const [pagesSidebarOpen, setPagesSidebarOpen] = React.useState(false);
   const [showExportCapture, setShowExportCapture] = React.useState(false);
   const [activeText, setActiveText] = React.useState<TextOverlay | null>(null);
@@ -42,7 +42,6 @@ export default function Editor() {
     if (!ok) return;
     try {
       if (hasJoinedWaitlist()) return;
-      if (sessionStorage.getItem(WAITLIST_DISMISSED_KEY) === "1") return;
     } catch {
       // ignore storage failures
     }
@@ -57,21 +56,6 @@ export default function Editor() {
       document.body.style.overflow = prev;
     };
   }, []);
-
-  // Handle sign tool activation from URL params
-  useEffect(() => {
-    if (!editor.loading && editor.file && editor.activeTool === "sign" && !editor.pendingSignature && !signToolActivated.current) {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get("tool") === "sign") {
-        signToolActivated.current = true;
-        // Small delay to ensure everything is initialized
-        const timer = setTimeout(() => {
-          editor.handleSignRequest();
-        }, 300);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [editor.loading, editor.file, editor.activeTool, editor.pendingSignature, editor.handleSignRequest]);
 
   if (editor.loading) {
     return <EditorLoadingState />;
@@ -530,7 +514,7 @@ function EditorEmptyState() {
   };
 
   return (
-    <div className="h-dvh bg-background text-foreground flex flex-col overflow-hidden font-sans">
+    <div className="h-dvh bg-brand-hero text-foreground flex flex-col overflow-hidden font-sans">
       <main className="flex-1 min-w-0 flex flex-col items-center min-h-0 overflow-hidden">
         {/* Header */}
         <div className="hidden md:block shrink-0 w-full sticky top-0 z-20">
@@ -543,24 +527,16 @@ function EditorEmptyState() {
 
         {/* Mobile Header */}
         <div className="md:hidden shrink-0 w-full sticky top-0 z-20 bg-card border-b border-border px-4 py-3">
-          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 bg-gradient-hero rounded-lg flex items-center justify-center">
-              <FileText className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-display text-lg font-bold text-foreground">scrixo</span>
+          <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
+            <BrandLogo />
           </Link>
         </div>
 
         {/* Upload Area */}
         {/* Logo Section */}
         <div className="z-10 w-full max-w-4xl flex flex-col items-center mt-12">
-          <div className="flex items-center gap-6 mb-4 animate-float">
-            <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center shadow-glow">
-              <ScrollText className="w-12 h-12 text-primary-foreground" />
-            </div>
-            <h1 className="text-[7rem] font-bold tracking-[-0.04em] leading-none text-foreground">
-              scrixo
-            </h1>
+          <div className="flex items-center justify-center mb-4 animate-float">
+            <BrandLogo size="lg" />
           </div>
 
           <p className="text-muted-foreground/80 text-lg font-medium max-w-2xl text-center mb-8">
@@ -597,11 +573,8 @@ function EditorHeader({
 }) {
   return (
     <header className="bg-card border-b border-border px-4 py-3 flex items-center gap-4 shrink-0 w-full">
-      <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-        <div className="w-8 h-8 bg-gradient-hero rounded-lg flex items-center justify-center">
-          <FileText className="w-4 h-4 text-primary-foreground" />
-        </div>
-        <span className="font-display text-lg font-bold text-foreground">scrixo</span>
+      <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
+        <BrandLogo />
       </Link>
 
       <div className="h-4 w-[1px] bg-border mx-2 hidden sm:block" />
@@ -610,8 +583,10 @@ function EditorHeader({
       </span>
 
       <div className="ml-auto flex items-center gap-2">
-        <Button variant="outline" size="sm" className="h-8 px-4">
-          Share
+        <Button variant="outline" size="sm" className="h-8 px-4" asChild>
+          <a href="https://x.com/heynathanielj" target="_blank" rel="noopener noreferrer">
+            Contact
+          </a>
         </Button>
 
         {onSave && !isFree && (

@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ChevronDown, FileText, Menu, Twitter, X } from "lucide-react";
+import { ChevronDown, Menu, Twitter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useDashboard } from "@/hooks/useDashboard";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const GUIDE_LINKS = [
   { href: "/sign-pdf-without-printing", label: "Without printing" },
@@ -19,27 +19,18 @@ const GUIDE_LINKS = [
   { href: "/sign-a-pdf-on-phone", label: "On phone" },
   { href: "/sign-pdf-on-iphone", label: "On iPhone" },
   { href: "/sign-pdf-on-android", label: "On Android" },
+  { href: "/how-to-sign-pdf-and-send-back", label: "Sign and send back" },
 ] as const;
 
 export function SiteHeader() {
-  const { user, signIn, signOut } = useDashboard();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  const isGuest = !user || user.isFree;
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-border/40 backdrop-blur-md">
       <div className="mx-auto w-full max-w-6xl px-6 py-4">
         <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-glow">
-              <FileText className="h-5 w-5" />
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-black tracking-tight">scrixo</span>
-              <span className="text-[11px] text-muted-foreground/70 font-semibold tracking-tight">
-                PDF signer
-              </span>
-            </div>
+          <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
+            <BrandLogo />
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
@@ -85,14 +76,6 @@ export function SiteHeader() {
                 <Twitter className="w-4 h-4" />
               </Link>
             </Button>
-            <div className="h-5 w-px bg-border mx-1" />
-            <Button
-              variant="ghost"
-              className="text-muted-foreground hover:text-foreground text-xs font-bold uppercase tracking-tight h-9 px-3"
-              onClick={isGuest ? signIn : signOut}
-            >
-              {isGuest ? "Log In" : "Log Out"}
-            </Button>
           </nav>
 
           <div className="md:hidden flex items-center gap-2">
@@ -133,16 +116,6 @@ export function SiteHeader() {
                 <Link href="https://github.com/strawhatx/scrixo-dev" target="_blank" rel="noopener noreferrer">
                   Report Bug
                 </Link>
-              </Button>
-              <Button
-                variant="ghost"
-                className="justify-start"
-                onClick={() => {
-                  isGuest ? signIn() : signOut();
-                  setMobileMenuOpen(false);
-                }}
-              >
-                {isGuest ? "Log In" : "Log Out"}
               </Button>
             </div>
           </nav>

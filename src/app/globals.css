@@ -245,3 +245,11 @@
 .ad-banner {
   @apply bg-muted/50 border border-border rounded-lg flex items-center justify-center text-muted-foreground text-sm;
 }
+
+.bg-brand-hero {
+  background-color: #f4f7fc;
+  background-image: url("/assets/hero-background.svg");
+  background-size: 100% auto;
+  background-position: center top;
+  background-repeat: no-repeat;
+}

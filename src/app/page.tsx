@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Landing from "@/components/Landing";
+import { HOME_FAQS, HOME_HOW_TO_STEPS, stripMdLinks } from "@/lib/seo-content";
+import { ogImages } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: "Sign a PDF Free — No Account, No Printing | Scrixo",
@@ -14,17 +16,54 @@ export const metadata: Metadata = {
       "Sign a PDF free in your browser. No account, no printing, no scanning. Draw or type your signature and download instantly.",
     url: "https://scrixo.com",
     siteName: "Scrixo",
-    images: ["https://scrixo.com/og-image.png"],
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
     title: "Sign a PDF Free — No Account, No Printing | Scrixo",
     description:
       "Sign a PDF free in your browser. No account, no printing, no scanning. Draw or type your signature and download instantly.",
-    images: ["https://scrixo.com/og-image.png"],
+    images: ogImages,
   },
 };
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "HowTo",
+      name: "How to sign a PDF free",
+      description:
+        "Sign a PDF free in your browser. No account, no printing, no scanning.",
+      step: HOME_HOW_TO_STEPS.map((step, index) => ({
+        "@type": "HowToStep",
+        position: index + 1,
+        name: step.name,
+        text: step.text,
+      })),
+    },
+    {
+      "@type": "FAQPage",
+      mainEntity: HOME_FAQS.map((faq) => ({
+        "@type": "Question",
+        name: faq.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: stripMdLinks(faq.answer),
+        },
+      })),
+    },
+  ],
+};
+
 export default function Home() {
-  return <Landing />;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <Landing />
+    </>
+  );
 }

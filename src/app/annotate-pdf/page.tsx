@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 export const metadata: Metadata = {
@@ -11,9 +12,11 @@ export const metadata: Metadata = {
     description: "Annotate PDF online free with no login required. Highlight PDF text, add comments, draw on PDF, and mark up documents instantly.",
     url: "https://scrixo.com/annotate-pdf",
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "Annotate PDF Online Free - Highlight, Comment & Draw",
     description: "Annotate PDF online free with no login required. Highlight PDF text, add comments, draw on PDF, and mark up documents instantly.",
   },

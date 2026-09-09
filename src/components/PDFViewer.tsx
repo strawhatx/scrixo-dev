@@ -485,6 +485,7 @@ export function PDFViewer(props: PDFViewerProps) {
         ...src,
         id: `field-${stamp}`,
         name: `${(src.name || "field").trim() || "field"}_copy`,
+        imported: false,
         x: src.x + 12,
         y: src.y + 12,
       };
@@ -612,6 +613,7 @@ export function PDFViewer(props: PDFViewerProps) {
       return list.map((o) => {
         const s = scaleByPage.get(o.page) ?? 1;
         if (!s || s === 1) return o;
+        if ("imported" in o && (o as { imported?: boolean }).imported) return o;
         // Heuristic: if values look "too large" for base units, divide by scale.
         // We only run once per file load to avoid double-scaling.
         return {
@@ -793,6 +795,7 @@ export function PDFViewer(props: PDFViewerProps) {
           canvasContext: ctx,
           viewport,
           transform: outputScale !== 1 ? ([outputScale, 0, 0, outputScale, 0, 0] as const) : undefined,
+          annotationMode: (pdfjs as { AnnotationMode?: { DISABLE?: number } }).AnnotationMode?.DISABLE ?? 0,
         };
 
         const task = page.render(renderContext as any);
@@ -2195,9 +2198,11 @@ export function PDFViewer(props: PDFViewerProps) {
                           activeOverlay.id === f.id &&
                           activeOverlay.page === pageNum;
                         const fieldIndex = entry.fields.findIndex((x) => x.id === f.id) + 1;
-                        const fieldFill = isSelected
-                          ? "bg-field/80"
-                          : "bg-field/45";
+                        const fieldFill = f.imported
+                          ? "bg-field"
+                          : isSelected
+                            ? "bg-field/80"
+                            : "bg-field/45";
                         return (
                           <div
                             key={f.id}
@@ -2233,6 +2238,7 @@ export function PDFViewer(props: PDFViewerProps) {
                               }
                             }}
                           >
+                            {f.imported ? <div className="absolute inset-0 bg-white" aria-hidden /> : null}
                             {isInput ? (
                               isMultiline ? (
                                 <textarea

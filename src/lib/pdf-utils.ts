@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
+import { PDFCheckBox, PDFDocument, PDFDropdown, PDFOptionList, PDFRadioGroup, PDFSignature, PDFTextField, StandardFonts, degrees, rgb } from "pdf-lib";
 import type { FieldKind } from "@/types/fields";
 import type { TextAlign, TextFontFamily } from "@/lib/text-style";
 
@@ -53,6 +53,8 @@ export interface FieldOverlay {
   multiline?: boolean;
   checked?: boolean;
   options?: string[];
+  /** True when this overlay was created from an existing AcroForm widget. */
+  imported?: boolean;
 }
 
 export interface TextOverlay {
@@ -92,6 +94,80 @@ function standardFontForText(family?: TextFontFamily, bold?: boolean, italic?: b
   return StandardFonts.Helvetica;
 }
 
+function fillImportedAcroForm(pdfDoc: PDFDocument, overlays: FieldOverlay[]) {
+  const imported = overlays.filter((f) => f.imported);
+  if (imported.length === 0) return;
+
+  let form: ReturnType<PDFDocument["getForm"]>;
+  try {
+    form = pdfDoc.getForm();
+  } catch {
+    return;
+  }
+
+  try {
+    if (form.hasXFA()) form.deleteXFA();
+  } catch {
+    // ignore
+  }
+
+  const byName = new Map<string, FieldOverlay[]>();
+  for (const overlay of imported) {
+    const name = (overlay.name || "").trim();
+    if (!name) continue;
+    const list = byName.get(name) ?? [];
+    list.push(overlay);
+    byName.set(name, list);
+  }
+
+  for (const [name, widgets] of byName) {
+    const field = form.getFieldMaybe(name);
+    if (!field) continue;
+    const primary = widgets[0];
+    try {
+      if (field instanceof PDFSignature) {
+        form.removeField(field);
+        continue;
+      }
+      if (field instanceof PDFTextField) {
+        if (typeof primary.value === "string") field.setText(primary.value);
+        continue;
+      }
+      if (field instanceof PDFCheckBox) {
+        if (primary.checked) field.check();
+        else field.uncheck();
+        continue;
+      }
+      if (field instanceof PDFRadioGroup) {
+        const selected = widgets.find((w) => w.checked && w.value);
+        if (selected?.value) field.select(selected.value);
+        continue;
+      }
+      if (field instanceof PDFDropdown) {
+        if (primary.value) field.select(primary.value);
+        continue;
+      }
+      if (field instanceof PDFOptionList) {
+        const values =
+          Array.isArray(primary.values) && primary.values.length > 0
+            ? primary.values
+            : primary.value
+              ? [primary.value]
+              : [];
+        if (values.length > 0) field.select(values);
+      }
+    } catch {
+      // Flatten below still strips widgets when possible.
+    }
+  }
+
+  try {
+    form.flatten({ updateFieldAppearances: true });
+  } catch {
+    // Copied pages may still carry widget appearances if flatten fails.
+  }
+}
+
 export async function processPDF(
   file: File,
   signatureOverlays: SignatureOverlay[],
@@ -112,7 +188,8 @@ export async function processPDF(
   }
 ): Promise<Uint8Array> {
   const arrayBuffer = await file.arrayBuffer();
-  const sourceDoc = await PDFDocument.load(arrayBuffer);
+  const sourceDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+  fillImportedAcroForm(sourceDoc, opts?.fieldOverlays ?? []);
 
   const pageCount = sourceDoc.getPageCount();
   const naturalOrder = Array.from({ length: pageCount }, (_, i) => i + 1);
@@ -239,6 +316,23 @@ export async function processPDF(
       const page = pages[pageIdx];
       if (!page) continue;
       const kind = f.kind ?? "text";
+
+      if (f.imported) {
+        if (kind === "signature" && typeof f.value === "string" && f.value.startsWith("data:")) {
+          const type = inferDataUrlType(f.value);
+          const embedded =
+            type.includes("jpeg") || type.includes("jpg")
+              ? await pdfDoc.embedJpg(f.value)
+              : await pdfDoc.embedPng(f.value);
+          page.drawImage(embedded, {
+            x: f.x,
+            y: page.getHeight() - f.y - f.height,
+            width: f.width,
+            height: f.height,
+          });
+        }
+        continue;
+      }
 
       const baseName =
         kind === "radio"

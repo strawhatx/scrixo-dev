@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 const PATH = "/fill-pdf";
@@ -15,9 +16,11 @@ export const metadata: Metadata = {
     description: "Fill a PDF form online free, then sign it. No printing, no login.",
     url: `https://scrixo.com${PATH}`,
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "Fill and Sign a PDF Online Free",
     description: "Fill a PDF form online free, then sign it. No printing, no login.",
   },
@@ -51,17 +54,18 @@ export default function FillPDFPage() {
       sections={[
         {
           heading: "Fill without printing",
-          body: "You do not need to print a form to write on it. Type on the PDF, then sign. The download is a normal file the recipient can open in any reader.",
+          body: "You do not need to print a form to write on it. Type on the PDF, then sign. If printing is the whole problem, see [how to sign a PDF without printing](/sign-pdf-without-printing).",
         },
         {
           heading: "Fill and sign in one sitting",
-          body: "The fill tools and the signature pad are in the same editor. No extra app, no second website.",
+          body: "The fill tools and the signature pad are in the same editor. Prefer to [sign only](/sign-pdf)? Same upload, skip the blanks.",
         },
       ]}
       faqs={[
         {
           question: "Can I fill and sign in the same PDF?",
-          answer: "Yes. Add text and checkboxes, then use Sign to place your signature before you download.",
+          answer:
+            "Yes. Add text, then use Sign to place your signature before you download. Or start from [sign a PDF](/sign-pdf) if the form is already filled.",
         },
         {
           question: "Do I need an account to fill a form?",
