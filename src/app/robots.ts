@@ -5,6 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
+      disallow: ["/edit", "/edit/"],
     },
     sitemap: "https://scrixo.com/sitemap.xml",
   };

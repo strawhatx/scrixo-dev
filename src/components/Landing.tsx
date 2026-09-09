@@ -29,8 +29,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { LinkedCopy } from "@/components/LinkedCopy";
-import { BrandLogo } from "@/components/BrandLogo";
-import { HOME_FAQS, LAUNCH_LINKS } from "@/lib/seo-content";
+import { HOME_FAQS, GUIDE_GROUPS } from "@/lib/seo-content";
+import { SiteFooter } from "@/components/SiteFooter";
 
 export default function Landing() {
   const year = useMemo(() => new Date().getFullYear(), []);
@@ -63,7 +63,11 @@ export default function Landing() {
 
                 <p className="text-base md:text-lg text-muted-foreground/80 font-medium max-w-xl">
                   Draw or type your signature in the browser, place it on the page, and download a
-                  clean PDF you can send back. No printer, no scanner, no signup.
+                  clean PDF you can send back. No printer, no scanner, no signup.{" "}
+                  <Link href="/sign-pdf-without-printing" className="font-semibold text-accent hover:underline">
+                    Learn how to sign a PDF without printing it
+                  </Link>
+                  .
                 </p>
 
                 <ul className="space-y-3 text-sm font-semibold text-muted-foreground/85">
@@ -86,6 +90,32 @@ export default function Landing() {
                     Download and send — no scanning
                   </li>
                 </ul>
+
+                <p className="text-sm font-semibold text-muted-foreground/85 leading-relaxed">
+                  <Link href="/sign-pdf" className="text-accent hover:underline">
+                    Sign a PDF free
+                  </Link>
+                  {" · "}
+                  <Link href="/sign-pdf-on-iphone" className="text-accent hover:underline">
+                    iPhone
+                  </Link>
+                  {" · "}
+                  <Link href="/sign-pdf-on-android" className="text-accent hover:underline">
+                    Android
+                  </Link>
+                  {" · "}
+                  <Link href="/sign-a-pdf-on-phone" className="text-accent hover:underline">
+                    Phone
+                  </Link>
+                  {" · "}
+                  <Link href="/sign-pdf-on-mac" className="text-accent hover:underline">
+                    Mac
+                  </Link>
+                  {" · "}
+                  <Link href="/fill-pdf" className="text-accent hover:underline">
+                    Fill and sign
+                  </Link>
+                </p>
               </div>
 
               <div className="space-y-3 h-full">
@@ -294,20 +324,30 @@ export default function Landing() {
 
         <section className="py-14 border-t border-border/60">
           <h2 className="text-2xl md:text-3xl font-black tracking-tight text-center">
-            Signing on a different device?
+            Guides
           </h2>
-          <p className="mt-3 text-center text-muted-foreground">
-            <LinkedCopy text={"Same free signer — pick the [Mac](/sign-pdf-on-mac), [Chromebook](/sign-pdf-on-chromebook), or [mobile](/sign-pdf-mobile) guide that matches how you're signing."} />
+          <p className="mt-3 text-center text-muted-foreground max-w-2xl mx-auto">
+            Same free signer. Pick the page that matches what you are trying to do.
           </p>
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            {LAUNCH_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:border-accent/50 hover:text-accent transition-colors"
-              >
-                {link.label}
-              </Link>
+          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-10 max-w-4xl mx-auto">
+            {GUIDE_GROUPS.map((group) => (
+              <div key={group.heading}>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4">
+                  {group.heading}
+                </h3>
+                <ul className="space-y-3">
+                  {group.links.map((link) => (
+                    <li key={link.href}>
+                      <Link
+                        href={link.href}
+                        className="text-base font-semibold text-foreground hover:text-accent"
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
           </div>
         </section>
@@ -317,7 +357,7 @@ export default function Landing() {
             <h2 className="text-2xl md:text-4xl font-black tracking-tight">Sign your PDF in seconds</h2>
             <div className="flex flex-col items-center gap-3">
               <Button variant="hero" size="xl" asChild>
-                <Link href="/edit/new?tool=sign">Upload a PDF to sign</Link>
+                <Link href="/sign-pdf">Sign a PDF free</Link>
               </Button>
               <div className="text-xs text-muted-foreground/70 font-bold">No account required</div>
             </div>
@@ -325,12 +365,7 @@ export default function Landing() {
         </section>
 
         <WaitlistFooter />
-        <footer className="py-10 border-t border-border/60 text-center text-xs text-muted-foreground/60 font-semibold">
-          <div className="flex items-center justify-center gap-2">
-            <BrandLogo variant="mark" className="h-8 w-8" />
-            <span>© {year} scrixo</span>
-          </div>
-        </footer>
+        <SiteFooter year={year} />
       </main>
     </div>
   );

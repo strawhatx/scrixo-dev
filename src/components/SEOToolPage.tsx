@@ -12,6 +12,7 @@ import {
 import { PDFUpload } from "@/components/PDFUpload";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WaitlistFooter } from "@/components/WaitlistForm";
+import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -314,7 +315,7 @@ export function SEOToolPage({
                 Signing on a different device?
               </h2>
               <p className="text-center text-muted-foreground">
-                <LinkedCopy text="Same tool, same free download — pick the [Mac](/sign-pdf-on-mac), [Chromebook](/sign-pdf-on-chromebook), or [phone](/sign-a-pdf-on-phone) guide. Need to [fill the form](/fill-pdf) first, or [sign and send it back](/how-to-sign-pdf-and-send-back)?" />
+                <LinkedCopy text="Same tool, same free download — [sign without printing](/sign-pdf-without-printing), or pick the [iPhone](/sign-pdf-on-iphone), [Android](/sign-pdf-on-android), [Mac](/sign-pdf-on-mac), or [phone](/sign-a-pdf-on-phone) guide. Need to [fill the form](/fill-pdf) first, or [sign and send it back](/how-to-sign-pdf-and-send-back)?" />
               </p>
               <div className="flex flex-wrap justify-center gap-3">
                 {links.map((link) => (
@@ -332,6 +333,7 @@ export function SEOToolPage({
         </div>
       </main>
       <WaitlistFooter />
+      <SiteFooter />
     </div>
   );
 }

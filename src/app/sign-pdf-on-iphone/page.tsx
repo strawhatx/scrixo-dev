@@ -53,7 +53,7 @@ export default function SignPDFOniPhonePage() {
       sections={[
         {
           heading: "Safari, not another App Store PDF editor",
-          body: "iPhone already has too many PDF apps. This signer is a website. If your school or workplace blocks App Store installs, Safari still works.",
+          body: "iPhone already has too many PDF apps. This signer is a website. If your school or workplace blocks App Store installs, Safari still works. You also skip the print-and-scan loop — [sign a PDF without printing](/sign-pdf-without-printing).",
         },
         {
           heading: "Mail attachments",

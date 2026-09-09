@@ -14,12 +14,13 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { FeedbackButton, FeedbackDialog } from "@/components/FeedbackDialog";
 
 const GUIDE_LINKS = [
-  { href: "/sign-pdf-without-printing", label: "Without printing" },
   { href: "/sign-pdf-on-mac", label: "On Mac" },
   { href: "/sign-pdf-on-chromebook", label: "On Chromebook" },
   { href: "/sign-a-pdf-on-phone", label: "On phone" },
   { href: "/sign-pdf-on-iphone", label: "On iPhone" },
   { href: "/sign-pdf-on-android", label: "On Android" },
+  { href: "/sign-pdf-mobile", label: "On mobile" },
+  { href: "/sign-pdf-electronically", label: "Electronically" },
   { href: "/how-to-sign-pdf-and-send-back", label: "Sign and send back" },
 ] as const;
 
@@ -38,6 +39,9 @@ export function SiteHeader() {
           <nav className="hidden md:flex items-center gap-1">
             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
               <Link href="/sign-pdf">Sign PDF</Link>
+            </Button>
+            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
+              <Link href="/sign-pdf-without-printing">Without printing</Link>
             </Button>
             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
               <Link href="/fill-pdf">Fill &amp; sign</Link>
@@ -89,6 +93,9 @@ export function SiteHeader() {
             <div className="flex flex-col gap-2">
               <Button variant="ghost" className="justify-start" asChild onClick={() => setMobileMenuOpen(false)}>
                 <Link href="/sign-pdf">Sign PDF</Link>
+              </Button>
+              <Button variant="ghost" className="justify-start" asChild onClick={() => setMobileMenuOpen(false)}>
+                <Link href="/sign-pdf-without-printing">Without printing</Link>
               </Button>
               <Button variant="ghost" className="justify-start" asChild onClick={() => setMobileMenuOpen(false)}>
                 <Link href="/fill-pdf">Fill &amp; sign</Link>

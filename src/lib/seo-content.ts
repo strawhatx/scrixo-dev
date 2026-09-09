@@ -19,18 +19,31 @@ export type RelatedLink = {
 };
 
 /** Launch cluster — keep these interlinked on every sign page. */
-export const LAUNCH_LINKS: RelatedLink[] = [
-  { href: "/sign-pdf", label: "Sign a PDF free" },
-  { href: "/sign-pdf-without-printing", label: "Sign a PDF without printing" },
-  { href: "/sign-pdf-on-mac", label: "Sign a PDF on Mac" },
-  { href: "/sign-pdf-on-chromebook", label: "Sign a PDF on a Chromebook" },
-  { href: "/sign-a-pdf-on-phone", label: "Sign a PDF on your phone" },
-  { href: "/sign-pdf-on-iphone", label: "Sign a PDF on iPhone" },
-  { href: "/sign-pdf-on-android", label: "Sign a PDF on Android" },
-  { href: "/sign-pdf-mobile", label: "Sign a PDF on mobile" },
-  { href: "/fill-pdf", label: "Fill and sign a PDF" },
-  { href: "/how-to-sign-pdf-and-send-back", label: "Sign a PDF and send it back" },
+export const GUIDE_GROUPS: { heading: string; links: RelatedLink[] }[] = [
+  {
+    heading: "Sign a PDF",
+    links: [
+      { href: "/sign-pdf", label: "Sign a PDF free" },
+      { href: "/sign-pdf-without-printing", label: "Sign a PDF without printing" },
+      { href: "/sign-pdf-electronically", label: "Sign a PDF electronically" },
+      { href: "/fill-pdf", label: "Fill and sign a PDF" },
+      { href: "/how-to-sign-pdf-and-send-back", label: "Sign a PDF and send it back" },
+    ],
+  },
+  {
+    heading: "On a device",
+    links: [
+      { href: "/sign-pdf-on-iphone", label: "Sign a PDF on iPhone" },
+      { href: "/sign-pdf-on-android", label: "Sign a PDF on Android" },
+      { href: "/sign-a-pdf-on-phone", label: "Sign a PDF on your phone" },
+      { href: "/sign-pdf-mobile", label: "Sign a PDF on mobile" },
+      { href: "/sign-pdf-on-mac", label: "Sign a PDF on Mac" },
+      { href: "/sign-pdf-on-chromebook", label: "Sign a PDF on a Chromebook" },
+    ],
+  },
 ];
+
+export const LAUNCH_LINKS: RelatedLink[] = GUIDE_GROUPS.flatMap((group) => group.links);
 
 export const HOME_HOW_TO_STEPS: HowToStep[] = [
   {
@@ -51,7 +64,7 @@ export const HOME_FAQS: FAQItem[] = [
   {
     question: "Can I sign a PDF free without an account?",
     answer:
-      "Yes. Guest signing works in the browser with no login. Draw or type your signature, download, and send the file back.",
+      "Yes. Guest signing works in the browser with no login. Draw or type your signature, download, and send the file back. Start on [sign a PDF free](/sign-pdf).",
   },
   {
     question: "Do I need to print and scan the document?",

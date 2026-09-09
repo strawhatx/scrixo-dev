@@ -4,6 +4,7 @@ import { signatureFontClassName } from "@/lib/signature-fonts";
 export const metadata: Metadata = {
   title: "Scrixo | Editor",
   description: "Edit your PDF document for free no signup required",
+  robots: { index: false, follow: false },
 };
 
 export default function EditLayout({

@@ -57,7 +57,7 @@ export default function SignAPDFOnPhonePage() {
         },
         {
           heading: "No app download",
-          body: "You do not need Adobe, CamScanner, or a separate “PDF signer” from the store for a one-off signature. The tool is the page you are on.",
+          body: "You do not need Adobe, CamScanner, or a separate “PDF signer” from the store for a one-off signature. The tool is the page you are on. Same idea if you are on a computer: [sign a PDF without printing](/sign-pdf-without-printing).",
         },
         {
           heading: "Sign and send it back from the same sitting",

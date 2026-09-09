@@ -33,7 +33,7 @@ export default function SignPDFPage() {
       mainKeyword="Sign PDF Online Free"
       h2Keywords={[]}
       description="Sign a PDF online free — no account, no printing, no watermark. Draw or type your signature in the browser, place it on the page, and download a file you can send back."
-      explainer="Scrixo is a free PDF signer, not a full document suite. Upload, sign, download. If you also need to fill blanks before you sign, use Fill & sign from the header."
+      explainer="Scrixo is a free PDF signer, not a full document suite. Upload, sign, download. If the job is skipping the printer, see [how to sign a PDF without printing](/sign-pdf-without-printing). If you also need to fill blanks before you sign, use Fill & sign from the header."
       tool="sign"
       howToTitle="How to sign a PDF online"
       sections={[
