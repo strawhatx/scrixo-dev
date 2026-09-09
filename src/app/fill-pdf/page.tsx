@@ -1,30 +1,19 @@
 import type { Metadata } from "next";
-import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
+import { pageMetadata } from "@/lib/page-metadata";
 
 const PATH = "/fill-pdf";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: PATH,
   title: "Fill and Sign a PDF Online Free | Scrixo",
   description:
     "Fill a PDF form online free, then sign it. Add text fields and checkboxes without printing. No login required.",
   keywords:
     "fill pdf form online free, fill and sign pdf free, fill pdf without printing, add text fields to pdf, fill pdf no login",
-  alternates: { canonical: `https://scrixo.com${PATH}` },
-  openGraph: {
-    title: "Fill and Sign a PDF Online Free",
-    description: "Fill a PDF form online free, then sign it. No printing, no login.",
-    url: `https://scrixo.com${PATH}`,
-    siteName: "Scrixo",
-    images: ogImages,
-  },
-  twitter: {
-    card: "summary_large_image",
-    images: ogImages,
-    title: "Fill and Sign a PDF Online Free",
-    description: "Fill a PDF form online free, then sign it. No printing, no login.",
-  },
-};
+  openGraphTitle: "Fill and Sign a PDF Online Free",
+  openGraphDescription: "Fill a PDF form online free, then sign it. No printing, no login.",
+});
 
 export default function FillPDFPage() {
   return (

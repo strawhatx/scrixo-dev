@@ -1,26 +1,19 @@
 import type { Metadata } from "next";
-import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
+import { pageMetadata } from "@/lib/page-metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/split-pdf",
   title: "Split PDF Pages Online Free - Extract Pages Instantly | Scrixo",
-  description: "Split PDF pages online free with no signup required. Extract pages from PDF, separate PDF pages, and cut PDF pages instantly. Free PDF splitter with no watermark.",
-  keywords: "split pdf pages online free, extract pages from pdf free, split pdf no signup, separate pdf pages online, cut pdf pages free, split pdf instantly",
-  robots: { index: false, follow: false },
-  openGraph: {
-    title: "Split PDF Pages Online Free - Extract Pages Instantly",
-    description: "Split PDF pages online free with no signup required. Extract pages from PDF, separate PDF pages, and cut PDF pages instantly.",
-    url: "https://scrixo.com/split-pdf",
-    siteName: "Scrixo",
-    images: ogImages,
-  },
-  twitter: {
-    card: "summary_large_image",
-    images: ogImages,
-    title: "Split PDF Pages Online Free - Extract Pages Instantly",
-    description: "Split PDF pages online free with no signup required. Extract pages from PDF, separate PDF pages, and cut PDF pages instantly.",
-  },
-};
+  description:
+    "Split PDF pages online free with no signup required. Extract pages from PDF, separate PDF pages, and cut PDF pages instantly. Free PDF splitter with no watermark.",
+  keywords:
+    "split pdf pages online free, extract pages from pdf free, split pdf no signup, separate pdf pages online, cut pdf pages free, split pdf instantly",
+  index: false,
+  openGraphTitle: "Split PDF Pages Online Free - Extract Pages Instantly",
+  openGraphDescription:
+    "Split PDF pages online free with no signup required. Extract pages from PDF, separate PDF pages, and cut PDF pages instantly.",
+});
 
 export default function SplitPDFPage() {
   return (

@@ -1,32 +1,20 @@
 import type { Metadata } from "next";
-import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
+import { pageMetadata } from "@/lib/page-metadata";
 
 const PATH = "/sign-pdf-electronically";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: PATH,
   title: "Sign a PDF Electronically (No Print or Account) | Scrixo",
   description:
     "Sign a PDF electronically in your browser. Draw or type your name on the file, download a clean copy, and send it back — no printing, scanning, or account.",
   keywords:
     "sign pdf electronically, electronic signature pdf, sign pdf digitally, e-signature pdf, electronic pdf signature",
-  alternates: { canonical: `https://scrixo.com${PATH}` },
-  openGraph: {
-    title: "Sign a PDF Electronically",
-    description:
-      "Sign a PDF electronically in your browser. Draw or type your name, download, and send it back — no printing or account.",
-    url: `https://scrixo.com${PATH}`,
-    siteName: "Scrixo",
-    images: ogImages,
-  },
-  twitter: {
-    card: "summary_large_image",
-    images: ogImages,
-    title: "Sign a PDF Electronically",
-    description:
-      "Sign a PDF electronically in your browser. Draw or type your name, download, and send it back — no printing or account.",
-  },
-};
+  openGraphTitle: "Sign a PDF Electronically",
+  openGraphDescription:
+    "Sign a PDF electronically in your browser. Draw or type your name, download, and send it back — no printing or account.",
+});
 
 export default function SignPDFElectronicallyPage() {
   return (

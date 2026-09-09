@@ -1,30 +1,20 @@
 import type { Metadata } from "next";
-import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
+import { pageMetadata } from "@/lib/page-metadata";
 
 const PATH = "/how-to-sign-pdf-and-send-back";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: PATH,
   title: "How to Sign a PDF and Send It Back | Scrixo",
   description:
     "Sign a PDF and send it back in three steps: upload, sign, download. No printing, no scanning, no account.",
   keywords:
     "how to sign pdf and send back, sign pdf and send, sign pdf return, sign pdf and email back, how to electronically sign pdf",
-  alternates: { canonical: `https://scrixo.com${PATH}` },
-  openGraph: {
-    title: "How to Sign a PDF and Send It Back",
-    description: "Sign a PDF and send it back in three steps: upload, sign, download. No printing or scanning.",
-    url: `https://scrixo.com${PATH}`,
-    siteName: "Scrixo",
-    images: ogImages,
-  },
-  twitter: {
-    card: "summary_large_image",
-    images: ogImages,
-    title: "How to Sign a PDF and Send It Back",
-    description: "Sign a PDF and send it back in three steps: upload, sign, download. No printing or scanning.",
-  },
-};
+  openGraphTitle: "How to Sign a PDF and Send It Back",
+  openGraphDescription:
+    "Sign a PDF and send it back in three steps: upload, sign, download. No printing or scanning.",
+});
 
 export default function HowToSignPDFAndSendBackPage() {
   return (

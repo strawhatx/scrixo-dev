@@ -1,30 +1,20 @@
 import type { Metadata } from "next";
-import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
+import { pageMetadata } from "@/lib/page-metadata";
 
 const PATH = "/sign-pdf-on-iphone";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: PATH,
   title: "Sign a PDF on iPhone (Safari, No App) | Scrixo",
   description:
     "Sign a PDF on iPhone in Safari. No App Store download. Draw your signature with a finger and send the file back from Mail or Files.",
   keywords:
     "sign pdf on iphone, sign pdf iphone, iphone pdf signature, sign pdf ios, sign pdf on phone, mobile pdf signer",
-  alternates: { canonical: `https://scrixo.com${PATH}` },
-  openGraph: {
-    title: "Sign a PDF on iPhone (Safari, No App)",
-    description: "Sign a PDF on iPhone in Safari. No App Store app. Finger signature, then send from Mail.",
-    url: `https://scrixo.com${PATH}`,
-    siteName: "Scrixo",
-    images: ogImages,
-  },
-  twitter: {
-    card: "summary_large_image",
-    images: ogImages,
-    title: "Sign a PDF on iPhone (Safari, No App)",
-    description: "Sign a PDF on iPhone in Safari. No App Store app. Finger signature, then send from Mail.",
-  },
-};
+  openGraphTitle: "Sign a PDF on iPhone (Safari, No App)",
+  openGraphDescription:
+    "Sign a PDF on iPhone in Safari. No App Store app. Finger signature, then send from Mail.",
+});
 
 export default function SignPDFOniPhonePage() {
   return (

@@ -1,30 +1,20 @@
 import type { Metadata } from "next";
-import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
+import { pageMetadata } from "@/lib/page-metadata";
 
 const PATH = "/sign-pdf-on-android";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: PATH,
   title: "Sign a PDF on Android (Chrome, No App) | Scrixo",
   description:
     "Sign a PDF on Android in Chrome. No Play Store app. Draw your signature with a finger or stylus and download a clean PDF.",
   keywords:
     "sign pdf on android, sign pdf android, android pdf signature, sign pdf on phone android, mobile pdf signer android",
-  alternates: { canonical: `https://scrixo.com${PATH}` },
-  openGraph: {
-    title: "Sign a PDF on Android (Chrome, No App)",
-    description: "Sign a PDF on Android in Chrome. No Play Store app. Finger or stylus, then download.",
-    url: `https://scrixo.com${PATH}`,
-    siteName: "Scrixo",
-    images: ogImages,
-  },
-  twitter: {
-    card: "summary_large_image",
-    images: ogImages,
-    title: "Sign a PDF on Android (Chrome, No App)",
-    description: "Sign a PDF on Android in Chrome. No Play Store app. Finger or stylus, then download.",
-  },
-};
+  openGraphTitle: "Sign a PDF on Android (Chrome, No App)",
+  openGraphDescription:
+    "Sign a PDF on Android in Chrome. No Play Store app. Finger or stylus, then download.",
+});
 
 export default function SignPDFOnAndroidPage() {
   return (

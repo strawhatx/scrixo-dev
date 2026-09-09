@@ -1,30 +1,20 @@
 import type { Metadata } from "next";
-import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
+import { pageMetadata } from "@/lib/page-metadata";
 
 const PATH = "/sign-a-pdf-on-phone";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: PATH,
   title: "Sign a PDF on Your Phone (No App) | Scrixo",
   description:
     "Sign a PDF on your phone in the mobile browser. No app download. Draw your signature with a finger and send the file back — iPhone or Android.",
   keywords:
     "sign a pdf on phone, sign pdf on phone, phone pdf signature, mobile pdf sign, sign pdf from phone",
-  alternates: { canonical: `https://scrixo.com${PATH}` },
-  openGraph: {
-    title: "Sign a PDF on Your Phone (No App)",
-    description: "Sign a PDF on your phone in the browser. No app. Draw with your finger and download.",
-    url: `https://scrixo.com${PATH}`,
-    siteName: "Scrixo",
-    images: ogImages,
-  },
-  twitter: {
-    card: "summary_large_image",
-    images: ogImages,
-    title: "Sign a PDF on Your Phone (No App)",
-    description: "Sign a PDF on your phone in the browser. No app. Draw with your finger and download.",
-  },
-};
+  openGraphTitle: "Sign a PDF on Your Phone (No App)",
+  openGraphDescription:
+    "Sign a PDF on your phone in the browser. No app. Draw with your finger and download.",
+});
 
 export default function SignAPDFOnPhonePage() {
   return (

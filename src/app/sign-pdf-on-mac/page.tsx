@@ -1,32 +1,20 @@
 import type { Metadata } from "next";
-import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
+import { pageMetadata } from "@/lib/page-metadata";
 
 const PATH = "/sign-pdf-on-mac";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: PATH,
   title: "How to Sign a PDF on Mac (Trackpad, Preview, Mail) | Scrixo",
   description:
     "Sign a PDF on Mac without wrestling Preview. Use this browser tool on MacBook, MacBook Air, or MacBook Pro — or follow the Preview, trackpad, camera, and Mail steps below.",
   keywords:
     "sign pdf on mac, sign pdf on macbook, how to add a signature in Preview on Mac, sign pdf mac trackpad, sign pdf from mail mac, sign pdf osx",
-  alternates: { canonical: `https://scrixo.com${PATH}` },
-  openGraph: {
-    title: "How to Sign a PDF on Mac (Trackpad, Preview, Mail)",
-    description:
-      "Sign a PDF on Mac in your browser, or use Preview’s trackpad, camera, and Mail options. Free, no account, no printing.",
-    url: `https://scrixo.com${PATH}`,
-    siteName: "Scrixo",
-    images: ogImages,
-  },
-  twitter: {
-    card: "summary_large_image",
-    images: ogImages,
-    title: "How to Sign a PDF on Mac (Trackpad, Preview, Mail)",
-    description:
-      "Sign a PDF on Mac in your browser, or use Preview’s trackpad, camera, and Mail options. Free, no account, no printing.",
-  },
-};
+  openGraphTitle: "How to Sign a PDF on Mac (Trackpad, Preview, Mail)",
+  openGraphDescription:
+    "Sign a PDF on Mac in your browser, or use Preview’s trackpad, camera, and Mail options. Free, no account, no printing.",
+});
 
 export default function SignPDFOnMacPage() {
   return (

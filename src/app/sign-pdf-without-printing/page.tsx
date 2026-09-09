@@ -1,32 +1,20 @@
 import type { Metadata } from "next";
-import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
+import { pageMetadata } from "@/lib/page-metadata";
 
 const PATH = "/sign-pdf-without-printing";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: PATH,
   title: "Sign a PDF Without Printing and Scanning | Scrixo",
   description:
     "Sign a PDF without printing and scanning. Add your signature in the browser, download a clean file, and send it back — no printer, paper, or account.",
   keywords:
     "sign pdf without printing and scanning, sign pdf without printing, sign pdf no printer, sign pdf digitally, electronic signature no printing",
-  alternates: { canonical: `https://scrixo.com${PATH}` },
-  openGraph: {
-    title: "Sign a PDF Without Printing and Scanning",
-    description:
-      "Sign a PDF without printing and scanning. Add an electronic signature in your browser and send the file back — no printer required.",
-    url: `https://scrixo.com${PATH}`,
-    siteName: "Scrixo",
-    images: ogImages,
-  },
-  twitter: {
-    card: "summary_large_image",
-    images: ogImages,
-    title: "Sign a PDF Without Printing and Scanning",
-    description:
-      "Sign a PDF without printing and scanning. Add an electronic signature in your browser and send the file back — no printer required.",
-  },
-};
+  openGraphTitle: "Sign a PDF Without Printing and Scanning",
+  openGraphDescription:
+    "Sign a PDF without printing and scanning. Add an electronic signature in your browser and send the file back — no printer required.",
+});
 
 export default function SignPDFWithoutPrintingPage() {
   return (

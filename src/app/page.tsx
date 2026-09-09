@@ -1,31 +1,18 @@
 import type { Metadata } from "next";
 import Landing from "@/components/Landing";
 import { HOME_FAQS, HOME_HOW_TO_STEPS, stripMdLinks } from "@/lib/seo-content";
-import { ogImages } from "@/lib/brand";
+import { pageMetadata } from "@/lib/page-metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/",
   title: "Sign a PDF Free — No Account, No Printing | Scrixo",
   description:
     "Sign a PDF free in your browser. No account, no printing, no scanning. Draw or type your signature and download a clean file you can send back.",
   keywords:
     "sign pdf free, sign a pdf, sign pdf without printing, electronic signature, sign pdf no account, sign pdf online",
-  alternates: { canonical: "https://scrixo.com" },
-  openGraph: {
-    title: "Sign a PDF Free — No Account, No Printing | Scrixo",
-    description:
-      "Sign a PDF free in your browser. No account, no printing, no scanning. Draw or type your signature and download instantly.",
-    url: "https://scrixo.com",
-    siteName: "Scrixo",
-    images: ogImages,
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Sign a PDF Free — No Account, No Printing | Scrixo",
-    description:
-      "Sign a PDF free in your browser. No account, no printing, no scanning. Draw or type your signature and download instantly.",
-    images: ogImages,
-  },
-};
+  openGraphDescription:
+    "Sign a PDF free in your browser. No account, no printing, no scanning. Draw or type your signature and download instantly.",
+});
 
 const jsonLd = {
   "@context": "https://schema.org",

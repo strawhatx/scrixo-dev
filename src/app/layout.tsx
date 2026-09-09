@@ -3,6 +3,7 @@ import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "../lib/providers";
 import { BRAND, ogImages } from "@/lib/brand";
+import { SITE_ORIGIN } from "@/lib/page-metadata";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -15,11 +16,10 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://scrixo.com"),
-  title: "Sign a PDF Free — No Account, No Printing | Scrixo",
-  description:
-    "Sign a PDF free in your browser. No account, no printing, no scanning. Draw or type your signature and download a clean file you can send back.",
-  keywords: "sign pdf free, sign a pdf, sign pdf without printing, electronic signature, sign pdf no account, pdf signer",
+  metadataBase: new URL(SITE_ORIGIN),
+  title: {
+    default: "Scrixo",
+  },
   icons: {
     icon: [
       { url: BRAND.icon, type: "image/svg+xml" },
@@ -31,19 +31,9 @@ export const metadata: Metadata = {
     apple: [{ url: BRAND.icon180, sizes: "180x180", type: "image/png" }],
   },
   openGraph: {
-    title: "Sign a PDF Free — No Account, No Printing | Scrixo",
-    description:
-      "Sign a PDF free in your browser. No account, no printing, no scanning. Draw or type your signature and download instantly.",
-    url: "https://scrixo.com",
     siteName: "Scrixo",
     images: ogImages,
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Sign a PDF Free — No Account, No Printing | Scrixo",
-    description:
-      "Sign a PDF free in your browser. No account, no printing, no scanning. Draw or type your signature and download instantly.",
-    images: ogImages,
+    type: "website",
   },
 };
 

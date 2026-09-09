@@ -1,30 +1,20 @@
 import type { Metadata } from "next";
-import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
+import { pageMetadata } from "@/lib/page-metadata";
 
 const PATH = "/sign-pdf";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: PATH,
   title: "Sign PDF Online Free — No Account Required | Scrixo",
   description:
     "Sign a PDF online free. No login, no printing, no watermark. Draw or type your signature in the browser and download instantly.",
   keywords:
     "sign pdf online free, add signature to pdf free, sign pdf no login, electronic signature pdf free, draw signature on pdf online",
-  alternates: { canonical: `https://scrixo.com${PATH}` },
-  openGraph: {
-    title: "Sign PDF Online Free — No Account Required",
-    description: "Sign a PDF online free. No login, no printing, no watermark. Draw or type your signature and download instantly.",
-    url: `https://scrixo.com${PATH}`,
-    siteName: "Scrixo",
-    images: ogImages,
-  },
-  twitter: {
-    card: "summary_large_image",
-    images: ogImages,
-    title: "Sign PDF Online Free — No Account Required",
-    description: "Sign a PDF online free. No login, no printing, no watermark. Draw or type your signature and download instantly.",
-  },
-};
+  openGraphTitle: "Sign PDF Online Free — No Account Required",
+  openGraphDescription:
+    "Sign a PDF online free. No login, no printing, no watermark. Draw or type your signature and download instantly.",
+});
 
 export default function SignPDFPage() {
   return (

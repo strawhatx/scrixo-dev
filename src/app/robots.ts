@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { SITE_ORIGIN } from "@/lib/page-metadata";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -7,6 +8,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/edit", "/edit/"],
     },
-    sitemap: "https://scrixo.com/sitemap.xml",
+    sitemap: `${SITE_ORIGIN}/sitemap.xml`,
   };
 }

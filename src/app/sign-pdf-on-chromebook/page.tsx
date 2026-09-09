@@ -1,32 +1,20 @@
 import type { Metadata } from "next";
-import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
+import { pageMetadata } from "@/lib/page-metadata";
 
 const PATH = "/sign-pdf-on-chromebook";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: PATH,
   title: "Sign a PDF on a Chromebook (No App) | Scrixo",
   description:
     "Sign a PDF on a Chromebook in Chrome — no Android app and no printer. Chrome’s PDF viewer cannot sign; this page is the actual tool, not just instructions.",
   keywords:
     "sign pdf on chromebook, sign pdf chromebook chrome, sign pdf without app chromebook, does chrome have a built-in pdf signer",
-  alternates: { canonical: `https://scrixo.com${PATH}` },
-  openGraph: {
-    title: "Sign a PDF on a Chromebook (No App)",
-    description:
-      "Sign a PDF on a Chromebook in Chrome. No Android app, no printer. Chrome’s built-in viewer cannot add a signature — this tool can.",
-    url: `https://scrixo.com${PATH}`,
-    siteName: "Scrixo",
-    images: ogImages,
-  },
-  twitter: {
-    card: "summary_large_image",
-    images: ogImages,
-    title: "Sign a PDF on a Chromebook (No App)",
-    description:
-      "Sign a PDF on a Chromebook in Chrome. No Android app, no printer. Chrome’s built-in viewer cannot add a signature — this tool can.",
-  },
-};
+  openGraphTitle: "Sign a PDF on a Chromebook (No App)",
+  openGraphDescription:
+    "Sign a PDF on a Chromebook in Chrome. No Android app, no printer. Chrome’s built-in viewer cannot add a signature — this tool can.",
+});
 
 export default function SignPDFOnChromebookPage() {
   return (

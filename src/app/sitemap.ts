@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
-
-const BASE = "https://scrixo.com";
+import { SITE_ORIGIN } from "@/lib/page-metadata";
 
 const paths: Array<{ path: string; priority: number }> = [
   { path: "/", priority: 1 },
@@ -20,7 +19,7 @@ const paths: Array<{ path: string; priority: number }> = [
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date();
   return paths.map(({ path, priority }) => ({
-    url: path === "/" ? BASE : `${BASE}${path}`,
+    url: path === "/" ? SITE_ORIGIN : `${SITE_ORIGIN}${path}`,
     lastModified,
     changeFrequency: "weekly",
     priority,
