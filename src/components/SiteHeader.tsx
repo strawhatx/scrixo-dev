@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ChevronDown, Menu, Twitter, X } from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -63,16 +63,6 @@ export function SiteHeader() {
             </DropdownMenu>
             <div className="h-5 w-px bg-border mx-1" />
             <FeedbackButton source="nav" />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground hover:text-foreground h-9 w-9"
-              asChild
-            >
-              <Link href="https://x.com/heynathanielj" target="_blank" rel="noopener noreferrer" title="Twitter">
-                <Twitter className="w-4 h-4" />
-              </Link>
-            </Button>
           </nav>
 
           <div className="md:hidden flex items-center gap-2">

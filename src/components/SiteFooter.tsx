@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Twitter } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { LAUNCH_LINKS } from "@/lib/seo-content";
 
@@ -32,9 +33,19 @@ export function SiteFooter({ year }: { year?: number }) {
         </ul>
       </nav>
       <div className="border-t border-border/60 py-8 text-center text-xs text-muted-foreground/60 font-semibold">
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-3">
           <BrandLogo variant="mark" className="h-8 w-8" />
           <span>© {y} scrixo</span>
+          <span aria-hidden="true">·</span>
+          <a
+            href="https://x.com/heynathanielj"
+            target="_blank"
+            rel="nofollow noopener noreferrer"
+            className="inline-flex items-center gap-1.5 hover:text-foreground"
+          >
+            <Twitter className="h-3.5 w-3.5" />
+            Twitter
+          </a>
         </div>
       </div>
     </footer>
