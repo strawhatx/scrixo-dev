@@ -1,73 +1,74 @@
-# Welcome to your Lovable project
+# Scrixo
 
-## Project info
+Browser PDF signer. Open a PDF, fill existing form fields, place a signature, and download. No account required for the guest path. Files stay in the browser for the session.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+Live product: [scrixo.com](https://scrixo.com)
 
-## How can I edit this code?
+## What it does
 
-There are several ways of editing your application.
+- Sign by drawing, typing, or uploading
+- Fill existing AcroForm fields on whatever PDF is uploaded (text, date, signature, checkbox, radio)
+- Keep those fields fillable in Preview, Chrome, and other PDF readers after download
+- Place extra text, date, signature, checkbox, and radio fields when the file has none
+- Guest mode: upload → edit → download. Nothing is saved to a backend this iteration
 
-**Use Lovable**
+Phase 5 tools (draw, image, merge, split, rotate, reorder) still exist in the codebase but are hidden from the v1 nav.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Stack
 
-Changes made via Lovable will be committed automatically to this repo.
+- Next.js 15 (App Router) + React 18 + TypeScript
+- Tailwind CSS + shadcn/ui
+- PDF.js for on-page rendering
+- pdf-lib for form fill and export
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Local setup
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
 npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+cp .env.example .env.local
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Open [http://localhost:3000](http://localhost:3000). Upload a PDF from the landing page to hit `/edit`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Useful scripts:
 
-**Use GitHub Codespaces**
+```sh
+npm run typecheck
+npm run lint
+npm run build
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Environment
 
-## What technologies are used for this project?
+Copy `.env.example` to `.env.local`.
 
-This project is built with:
+**Waitlist** (Google Sheet webhook, same pattern as other Scrixo properties):
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- `GOOGLE_SHEETS_WEBHOOK_URL`
+- `WAITLIST_PROJECT=Scrixo`
+- `WAITLIST_SECRET`
 
-## How can I deploy this project?
+Deploy the Apps Script as a web app: Execute as Me, Who has access = Anyone. After changing access, ship a new deployment version.
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+**Supabase** vars are still listed in `.env.example` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`). Auth, cloud save, and saved signatures are **off this iteration** (`isSupabaseConfigured` is hard-false). Guest signing does not need them.
 
-## Can I connect a custom domain to my Lovable project?
+## Form filling (any PDF)
 
-Yes, you can!
+Import does not assume field names. On open it:
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+1. Reads the AcroForm catalog
+2. Scans every page widget (including signature boxes that never made it into the catalog)
+3. Classifies each widget from PDF type and flags (`/Tx`, `/Sig`, `/Btn`, radio vs checkbox)
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Export writes values back into those widgets and leaves the form intact, so the downloaded file stays editable. Signatures that were drawn onto a signature widget are embedded as images over that box.
+
+## Project layout
+
+```
+src/app/            # Landing, SEO pages, /edit/[id]
+src/components/     # Editor, PDF viewer, signature pad, marketing
+src/hooks/          # useEditor, upload/download
+src/lib/            # acroform import, pdf-lib export, waitlist helpers
+public/assets/      # Brand icons, logo, OG image
+```
