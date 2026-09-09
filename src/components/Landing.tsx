@@ -22,13 +22,8 @@ import { PDFUpload } from "@/components/PDFUpload";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WaitlistFooter } from "@/components/WaitlistForm";
 import { useFileStore } from "@/store/useFileStore";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { LinkedCopy } from "@/components/LinkedCopy";
+import { FaqList } from "@/components/FaqList";
 import { HOME_FAQS, GUIDE_GROUPS } from "@/lib/seo-content";
 import { SiteFooter } from "@/components/SiteFooter";
 
@@ -308,18 +303,7 @@ export default function Landing() {
           <h2 className="text-2xl md:text-3xl font-black tracking-tight text-center">
             Frequently asked questions
           </h2>
-          <Accordion type="single" collapsible className="w-full max-w-3xl mx-auto mt-8">
-            {HOME_FAQS.map((faq, index) => (
-              <AccordionItem key={faq.question} value={`home-faq-${index}`}>
-                <AccordionTrigger className="text-left text-base sm:text-lg font-semibold">
-                  {faq.question}
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground leading-relaxed">
-                  <LinkedCopy text={faq.answer} />
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+          <FaqList faqs={HOME_FAQS} className="w-full max-w-3xl mx-auto mt-8" />
         </section>
 
         <section className="py-14 border-t border-border/60">

@@ -12,7 +12,9 @@ export function BrandLogo({ className, variant = "horizontal", size = "md" }: Br
     return (
       <img
         src={BRAND.icon}
-        alt="scrixo"
+        alt="Scrixo"
+        width={32}
+        height={32}
         className={cn("h-8 w-8", className)}
       />
     );
@@ -24,7 +26,9 @@ export function BrandLogo({ className, variant = "horizontal", size = "md" }: Br
     <span className={cn("inline-flex items-center", large ? "gap-3" : "gap-2", className)}>
       <img
         src={BRAND.icon}
-        alt=""
+        alt="Scrixo"
+        width={large ? 56 : 32}
+        height={large ? 56 : 32}
         className={large ? "h-12 w-12 sm:h-14 sm:w-14" : "h-7 w-7 md:h-8 md:w-8"}
       />
       <span

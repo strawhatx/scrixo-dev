@@ -15,15 +15,10 @@ import { WaitlistFooter } from "@/components/WaitlistForm";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { useFileStore } from "@/store/useFileStore";
 import { cn } from "@/lib/utils";
 import { LinkedCopy } from "@/components/LinkedCopy";
+import { FaqList } from "@/components/FaqList";
 import { BrandLogo } from "@/components/BrandLogo";
 import type { ContentSection, FAQItem, HowToStep, RelatedLink } from "@/lib/seo-content";
 import { DEFAULT_SIGN_STEPS, relatedLinksFor, stripMdLinks } from "@/lib/seo-content";
@@ -294,18 +289,7 @@ export function SEOToolPage({
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-center">
                 Frequently asked questions
               </h2>
-              <Accordion type="single" collapsible className="w-full">
-                {faqs.map((faq, index) => (
-                  <AccordionItem key={faq.question} value={`faq-${index}`}>
-                    <AccordionTrigger className="text-left text-base sm:text-lg font-semibold">
-                      {faq.question}
-                    </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground leading-relaxed">
-                      <LinkedCopy text={faq.answer} />
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
+              <FaqList faqs={faqs} className="w-full" />
             </div>
           )}
 
