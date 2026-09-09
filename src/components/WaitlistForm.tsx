@@ -99,7 +99,7 @@ export function WaitlistForm({ source, variant = "footer", className, onSuccess 
           placeholder="you@email.com"
           className="flex-1"
         />
-        <Button type="submit" disabled={pending} className="shrink-0 bg-[#ff5a3c] text-white hover:bg-[#ff4a2a]">
+        <Button type="submit" disabled={pending} className="shrink-0 bg-accent text-accent-foreground hover:bg-accent-hover">
           {pending ? "Joining…" : isPostExport ? "Notify me" : "Notify me"}
         </Button>
       </div>

@@ -13,6 +13,8 @@ import {
   ImageOverlay,
   FieldOverlay,
   TextOverlay,
+  type TextAlign,
+  type TextFontFamily,
 } from "@/lib/pdf-utils";
 import { ToolType } from "@/components/EditorToolbar";
 import type { FieldKind } from "@/types/fields";
@@ -47,8 +49,8 @@ export function useEditor() {
           else if (toolParam === "split") setShowSplitModal(true);
           else if (toolParam === "rearrange") setShowRearrangeModal(true);
         } else {
-          // For direct tools, set active tool
           setActiveTool(toolParam);
+          setPlacementArmed(toolParam === "text");
         }
       }
     }
@@ -77,11 +79,16 @@ export function useEditor() {
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [fieldOverlays, setFieldOverlays] = useState<FieldOverlay[]>([]);
   const [fieldKind, setFieldKind] = useState<FieldKind>("text");
+  const [placementArmed, setPlacementArmed] = useState(false);
   const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([]);
   const [pendingText, setPendingText] = useState<{ text: string; fontSize: number; color: string } | null>(null);
   // Text settings
   const [textFontSize, setTextFontSize] = useState<number>(12);
   const [textColor, setTextColor] = useState<string>("#000000");
+  const [textFontFamily, setTextFontFamily] = useState<TextFontFamily>("helvetica");
+  const [textBold, setTextBold] = useState(false);
+  const [textItalic, setTextItalic] = useState(false);
+  const [textAlign, setTextAlign] = useState<TextAlign>("left");
   
   // History State
   const [history, setHistory] = useState<
@@ -570,10 +577,15 @@ export function useEditor() {
     pendingImage,
     fieldOverlays,
     fieldKind,
+    placementArmed,
     textOverlays,
     pendingText,
     textFontSize,
     textColor,
+    textFontFamily,
+    textBold,
+    textItalic,
+    textAlign,
     historyIndex,
     historyLength: history.length,
     signatureCount,
@@ -600,10 +612,15 @@ export function useEditor() {
     setPendingImage,
     setFieldOverlays,
     setFieldKind,
+    setPlacementArmed,
     setTextOverlays,
     setPendingText,
     setTextFontSize,
     setTextColor,
+    setTextFontFamily,
+    setTextBold,
+    setTextItalic,
+    setTextAlign,
     setShowSignaturePad,
     setShowUpgradeModal,
     setShowMergeModal,

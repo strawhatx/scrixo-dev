@@ -1,5 +1,9 @@
-import { PDFDocument, degrees, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
 import type { FieldKind } from "@/types/fields";
+import type { TextAlign, TextFontFamily } from "@/lib/text-style";
+
+export type { TextAlign, TextFontFamily } from "@/lib/text-style";
+export { TEXT_FONT_STACK } from "@/lib/text-style";
 export interface SignatureOverlay {
   id: string;
   imageData: string;
@@ -59,7 +63,33 @@ export interface TextOverlay {
   y: number;
   fontSize?: number;
   color?: string;
+  fontFamily?: TextFontFamily;
+  bold?: boolean;
+  italic?: boolean;
+  align?: TextAlign;
   rotation?: number; // degrees
+}
+
+function standardFontForText(family?: TextFontFamily, bold?: boolean, italic?: boolean) {
+  const f = family ?? "helvetica";
+  const b = Boolean(bold);
+  const i = Boolean(italic);
+  if (f === "times") {
+    if (b && i) return StandardFonts.TimesRomanBoldItalic;
+    if (b) return StandardFonts.TimesRomanBold;
+    if (i) return StandardFonts.TimesRomanItalic;
+    return StandardFonts.TimesRoman;
+  }
+  if (f === "courier") {
+    if (b && i) return StandardFonts.CourierBoldOblique;
+    if (b) return StandardFonts.CourierBold;
+    if (i) return StandardFonts.CourierOblique;
+    return StandardFonts.Courier;
+  }
+  if (b && i) return StandardFonts.HelveticaBoldOblique;
+  if (b) return StandardFonts.HelveticaBold;
+  if (i) return StandardFonts.HelveticaOblique;
+  return StandardFonts.Helvetica;
 }
 
 export async function processPDF(
@@ -298,13 +328,25 @@ export async function processPDF(
             }
           }
         } else if (kind === "signature") {
-          // pdf-lib supports signature form fields in v1.17+, but keep this safe.
-          const sig = (form as any).createSignature?.(name);
-          if (sig?.addToPage) sig.addToPage(page, rect);
-          else {
-            // Fallback: create a text field placeholder if signature fields aren't available.
-            const tf = form.createTextField(name);
-            tf.addToPage(page, rect);
+          if (typeof f.value === "string" && f.value.startsWith("data:")) {
+            const type = inferDataUrlType(f.value);
+            const embedded =
+              type.includes("jpeg") || type.includes("jpg")
+                ? await pdfDoc.embedJpg(f.value)
+                : await pdfDoc.embedPng(f.value);
+            page.drawImage(embedded, {
+              x: f.x,
+              y: page.getHeight() - f.y - f.height,
+              width: f.width,
+              height: f.height,
+            });
+          } else {
+            const sig = (form as any).createSignature?.(name);
+            if (sig?.addToPage) sig.addToPage(page, rect);
+            else {
+              const tf = form.createTextField(name);
+              tf.addToPage(page, rect);
+            }
           }
         } else {
           // "text" + "date" fall back to text field.
@@ -355,15 +397,29 @@ export async function processPDF(
   }
 
   // Add text overlays
+  const textFontCache = new Map<string, Awaited<ReturnType<typeof pdfDoc.embedFont>>>();
   for (const textOverlay of opts?.textOverlays ?? []) {
     const pageIdx = pageIndexByOriginal.get(textOverlay.page) ?? textOverlay.page - 1;
     const page = pages[pageIdx];
     if (!page) continue;
     const textColor = cssHexToRgb(textOverlay.color ?? "#000000");
+    const size = textOverlay.fontSize ?? 12;
+    const standardFont = standardFontForText(textOverlay.fontFamily, textOverlay.bold, textOverlay.italic);
+    let font = textFontCache.get(standardFont);
+    if (!font) {
+      font = await pdfDoc.embedFont(standardFont);
+      textFontCache.set(standardFont, font);
+    }
+    const textWidth = font.widthOfTextAtSize(textOverlay.text, size);
+    let x = textOverlay.x;
+    if (textOverlay.align === "center") x -= textWidth / 2;
+    if (textOverlay.align === "right") x -= textWidth;
     page.drawText(textOverlay.text, {
-      x: textOverlay.x,
-      y: page.getHeight() - textOverlay.y,
-      size: textOverlay.fontSize ?? 12,
+      x,
+      // Screen overlays use CSS top-left; pdf-lib drawText uses baseline.
+      y: page.getHeight() - textOverlay.y - size,
+      size,
+      font,
       color: textColor,
       rotate: degrees(((textOverlay.rotation ?? 0) % 360 + 360) % 360),
     } as any);

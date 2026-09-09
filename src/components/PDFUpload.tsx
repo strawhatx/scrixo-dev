@@ -144,7 +144,7 @@ function MinimalUploadView({
       className={cn(
         "w-full h-full relative overflow-hidden rounded-2xl border transition-all duration-300",
         "bg-background cursor-pointer select-none shadow-sm",
-        isDragging ? "border-[#ff5a3c]/60 ring-4 ring-[#ff5a3c]/10" : "border-border/60",
+        isDragging ? "border-accent/60 ring-4 ring-accent/10" : "border-border/60",
         className
       )}
     >
@@ -162,7 +162,7 @@ function MinimalUploadView({
             <div
               className={cn(
                 "h-16 w-16 rounded-2xl flex items-center justify-center transition-all duration-300",
-                isDragging ? "bg-[#ff5a3c] text-white shadow-md" : "bg-[#ff5a3c]/10 text-[#ff5a3c]"
+                isDragging ? "bg-accent text-white shadow-md" : "bg-accent/10 text-accent"
               )}
             >
               <FileText className="h-8 w-8" />
@@ -185,8 +185,8 @@ function MinimalUploadView({
               }}
               className={cn(
                 "h-12 px-7 rounded-xl font-black tracking-tight transition-all duration-200",
-                "bg-[#ff5a3c] text-white shadow-md hover:shadow-lg hover:-translate-y-0.5",
-                "hover:bg-[#ff4a2a]"
+                "bg-accent text-white shadow-md hover:shadow-lg hover:-translate-y-0.5",
+                "hover:bg-accent-hover"
               )}
             >
               Upload your PDF

@@ -43,13 +43,13 @@ export default function Landing() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
             <div className="space-y-6 pt-2">
               <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs font-bold text-muted-foreground">
-                <Shield className="h-4 w-4 text-[#ff5a3c]" />
+                <Shield className="h-4 w-4 text-accent" />
                 No account · No printing · No watermark
               </div>
 
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.06]">
                 Sign a PDF free —{" "}
-                <span className="text-[#ff5a3c]">no account, no printing</span>
+                <span className="text-accent">no account, no printing</span>
               </h1>
 
               <p className="text-base md:text-lg text-muted-foreground/80 font-medium max-w-xl">
@@ -59,19 +59,19 @@ export default function Landing() {
 
               <ul className="space-y-3 text-sm font-semibold text-muted-foreground/85">
                 <li className="flex items-start gap-3">
-                  <span className="mt-0.5 h-6 w-6 rounded-full bg-[#ff5a3c]/10 text-[#ff5a3c] flex items-center justify-center">
+                  <span className="mt-0.5 h-6 w-6 rounded-full bg-accent/10 text-accent flex items-center justify-center">
                     <Check className="h-4 w-4" />
                   </span>
                   Upload the PDF
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="mt-0.5 h-6 w-6 rounded-full bg-[#ff5a3c]/10 text-[#ff5a3c] flex items-center justify-center">
+                  <span className="mt-0.5 h-6 w-6 rounded-full bg-accent/10 text-accent flex items-center justify-center">
                     <Check className="h-4 w-4" />
                   </span>
                   Draw, type, or reuse a signature
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="mt-0.5 h-6 w-6 rounded-full bg-[#ff5a3c]/10 text-[#ff5a3c] flex items-center justify-center">
+                  <span className="mt-0.5 h-6 w-6 rounded-full bg-accent/10 text-accent flex items-center justify-center">
                     <Check className="h-4 w-4" />
                   </span>
                   Download and send — no scanning
@@ -105,9 +105,9 @@ export default function Landing() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl mb-16">
-            <Card className="p-8 border-0 shadow-lg hover:shadow-xl transition-all bg-gradient-to-br from-blue-50 to-white">
+            <Card className="p-8 border-0 shadow-lg hover:shadow-xl transition-all bg-gradient-to-br from-primary/5 to-white">
               <div className="flex justify-center mb-6">
-                <div className="p-4 bg-blue-600 rounded-2xl">
+                <div className="p-4 bg-primary rounded-2xl">
                   <PenTool className="size-8 text-white" />
                 </div>
               </div>
@@ -116,15 +116,15 @@ export default function Landing() {
                 Skip the print-sign-scan loop. Place an electronic signature and email the file back.
               </p>
               <div className="flex justify-center">
-                <Link href="/sign-pdf-without-printing" className="text-sm font-bold text-[#ff5a3c] hover:underline">
+                <Link href="/sign-pdf-without-printing" className="text-sm font-bold text-accent hover:underline">
                   Open the guide →
                 </Link>
               </div>
             </Card>
 
-            <Card className="p-8 border-0 shadow-lg hover:shadow-xl transition-all bg-gradient-to-br from-purple-50 to-white">
+            <Card className="p-8 border-0 shadow-lg hover:shadow-xl transition-all bg-gradient-to-br from-primary/5 to-white">
               <div className="flex justify-center mb-6">
-                <div className="p-4 bg-purple-600 rounded-2xl">
+                <div className="p-4 bg-primary rounded-2xl">
                   <PenLine className="size-8 text-white" />
                 </div>
               </div>
@@ -133,18 +133,18 @@ export default function Landing() {
                 Trackpad, Chrome, or Mail attachment — sign in the browser if you don&apos;t want Preview or an app.
               </p>
               <div className="flex justify-center gap-3">
-                <Link href="/sign-pdf-on-mac" className="text-sm font-bold text-[#ff5a3c] hover:underline">
+                <Link href="/sign-pdf-on-mac" className="text-sm font-bold text-accent hover:underline">
                   Mac
                 </Link>
-                <Link href="/sign-pdf-on-chromebook" className="text-sm font-bold text-[#ff5a3c] hover:underline">
+                <Link href="/sign-pdf-on-chromebook" className="text-sm font-bold text-accent hover:underline">
                   Chromebook
                 </Link>
               </div>
             </Card>
 
-            <Card className="p-8 border-0 shadow-lg hover:shadow-xl transition-all bg-gradient-to-br from-green-50 to-white">
+            <Card className="p-8 border-0 shadow-lg hover:shadow-xl transition-all bg-gradient-to-br from-primary/5 to-white">
               <div className="flex justify-center mb-6">
-                <div className="p-4 bg-green-600 rounded-2xl">
+                <div className="p-4 bg-primary rounded-2xl">
                   <Smartphone className="size-8 text-white" />
                 </div>
               </div>
@@ -153,7 +153,7 @@ export default function Landing() {
                 Sign with a finger in Safari or Chrome. No App Store download required.
               </p>
               <div className="flex justify-center">
-                <Link href="/sign-a-pdf-on-phone" className="text-sm font-bold text-[#ff5a3c] hover:underline">
+                <Link href="/sign-a-pdf-on-phone" className="text-sm font-bold text-accent hover:underline">
                   Open the guide →
                 </Link>
               </div>
@@ -163,8 +163,8 @@ export default function Landing() {
           <div className="w-full max-w-5xl">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="flex items-start gap-4">
-                <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
-                  <Zap className="size-5 text-blue-600" />
+                <div className="p-2 bg-primary/10 rounded-lg flex-shrink-0">
+                  <Zap className="size-5 text-primary" />
                 </div>
                 <div>
                   <h4 className="font-semibold mb-1">Done in a minute</h4>
@@ -173,8 +173,8 @@ export default function Landing() {
               </div>
 
               <div className="flex items-start gap-4">
-                <div className="p-2 bg-purple-100 rounded-lg flex-shrink-0">
-                  <Shield className="size-5 text-purple-600" />
+                <div className="p-2 bg-primary/10 rounded-lg flex-shrink-0">
+                  <Shield className="size-5 text-primary" />
                 </div>
                 <div>
                   <h4 className="font-semibold mb-1">Private by default</h4>
@@ -183,8 +183,8 @@ export default function Landing() {
               </div>
 
               <div className="flex items-start gap-4">
-                <div className="p-2 bg-green-100 rounded-lg flex-shrink-0">
-                  <Sparkles className="size-5 text-green-600" />
+                <div className="p-2 bg-primary/10 rounded-lg flex-shrink-0">
+                  <Sparkles className="size-5 text-primary" />
                 </div>
                 <div>
                   <h4 className="font-semibold mb-1">Always free to sign</h4>
@@ -295,8 +295,8 @@ function StepCard({
         <div className="absolute inset-0 rounded-3xl bg-muted/10" />
         <div className="absolute left-10 top-6 h-24 w-16 rounded-2xl bg-white shadow-md border border-border/60 -rotate-6" />
         <div className="absolute left-14 top-8 h-24 w-16 rounded-2xl bg-white shadow-md border border-border/60 rotate-6" />
-        <div className="absolute left-1/2 -translate-x-1/2 top-10 h-20 w-20 rounded-3xl bg-[#ff5a3c]/10 border border-[#ff5a3c]/20 flex items-center justify-center shadow-sm">
-          <Icon className="h-10 w-10 text-[#ff5a3c]" />
+        <div className="absolute left-1/2 -translate-x-1/2 top-10 h-20 w-20 rounded-3xl bg-accent/10 border border-accent/20 flex items-center justify-center shadow-sm">
+          <Icon className="h-10 w-10 text-accent" />
         </div>
         <div className="absolute right-8 bottom-7 h-10 w-10 rounded-2xl bg-white border border-border/60 shadow-md flex items-center justify-center rotate-6">
           <MousePointer2 className="h-6 w-6 text-foreground/70" />

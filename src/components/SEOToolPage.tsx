@@ -62,16 +62,7 @@ const toolIcons = {
   rotate: RotateCw,
 };
 
-const toolColors = {
-  sign: "from-blue-50 to-white",
-  draw: "from-purple-50 to-white",
-  field: "from-green-50 to-white",
-  image: "from-pink-50 to-white",
-  merge: "from-orange-50 to-white",
-  split: "from-cyan-50 to-white",
-  rearrange: "from-indigo-50 to-white",
-  rotate: "from-yellow-50 to-white",
-};
+const TOOL_GRADIENT = "from-primary/5 to-white";
 
 export function SEOToolPage({
   mainKeyword,
@@ -93,7 +84,6 @@ export function SEOToolPage({
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ToolIcon = toolIcons[tool] || FileText;
-  const toolColor = toolColors[tool] || "from-gray-50 to-white";
   const isSign = tool === "sign";
   const steps = howToSteps ?? (isSign ? DEFAULT_SIGN_STEPS : undefined);
   const links = relatedLinks ?? (pathname ? relatedLinksFor(pathname) : relatedLinksFor(""));
@@ -162,10 +152,10 @@ export function SEOToolPage({
               <div
                 className={cn(
                   "h-20 w-20 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg",
-                  toolColor
+                  TOOL_GRADIENT
                 )}
               >
-                <ToolIcon className="h-10 w-10 text-[#ff5a3c]" />
+                <ToolIcon className="h-10 w-10 text-accent" />
               </div>
             </div>
 
@@ -178,7 +168,7 @@ export function SEOToolPage({
             </p>
           </div>
 
-          <Card className={cn("p-6 sm:p-8 md:p-10 border-2 shadow-xl", "bg-gradient-to-br", toolColor)}>
+          <Card className={cn("p-6 sm:p-8 md:p-10 border-2 shadow-xl", "bg-gradient-to-br", TOOL_GRADIENT)}>
             <div className="space-y-6">
               <div className="text-center space-y-2">
                 <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Get started in seconds</h2>
@@ -197,7 +187,7 @@ export function SEOToolPage({
                 <Button
                   onClick={() => fileInputRef.current?.click()}
                   size="lg"
-                  className="h-14 px-8 text-lg font-black bg-[#ff5a3c] text-white hover:bg-[#ff4a2a] shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all touch-manipulation"
+                  className="h-14 px-8 text-lg font-black bg-accent text-accent-foreground hover:bg-accent-hover shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all touch-manipulation"
                 >
                   {resolvedCta}
                 </Button>
@@ -224,8 +214,8 @@ export function SEOToolPage({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4">
             <Card className="p-6 border border-border/60">
               <div className="flex items-start gap-4">
-                <div className="p-3 bg-blue-100 rounded-xl flex-shrink-0">
-                  <Zap className="h-6 w-6 text-blue-600" />
+                <div className="p-3 bg-primary/10 rounded-xl flex-shrink-0">
+                  <Zap className="h-6 w-6 text-primary" />
                 </div>
                 <div>
                   <h3 className="font-bold text-lg mb-1">Works in the browser</h3>
@@ -235,8 +225,8 @@ export function SEOToolPage({
             </Card>
             <Card className="p-6 border border-border/60">
               <div className="flex items-start gap-4">
-                <div className="p-3 bg-purple-100 rounded-xl flex-shrink-0">
-                  <Shield className="h-6 w-6 text-purple-600" />
+                <div className="p-3 bg-primary/10 rounded-xl flex-shrink-0">
+                  <Shield className="h-6 w-6 text-primary" />
                 </div>
                 <div>
                   <h3 className="font-bold text-lg mb-1">Stays on your device</h3>
@@ -246,8 +236,8 @@ export function SEOToolPage({
             </Card>
             <Card className="p-6 border border-border/60">
               <div className="flex items-start gap-4">
-                <div className="p-3 bg-green-100 rounded-xl flex-shrink-0">
-                  <Sparkles className="h-6 w-6 text-green-600" />
+                <div className="p-3 bg-primary/10 rounded-xl flex-shrink-0">
+                  <Sparkles className="h-6 w-6 text-primary" />
                 </div>
                 <div>
                   <h3 className="font-bold text-lg mb-1">Free, no watermark</h3>
@@ -265,7 +255,7 @@ export function SEOToolPage({
               <ol className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {steps.map((step, index) => (
                   <Card key={step.name} className="p-6 border border-border/60">
-                    <div className="text-4xl font-black text-[#ff5a3c]/80 mb-3">{index + 1}</div>
+                    <div className="text-4xl font-black text-accent/80 mb-3">{index + 1}</div>
                     <h3 className="font-bold text-lg mb-2">{step.name}</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">{step.text}</p>
                   </Card>
@@ -311,9 +301,9 @@ export function SEOToolPage({
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {features.map((feature) => (
-                  <Card key={feature} className="p-4 border border-border/60 hover:border-[#ff5a3c]/40 transition-colors">
+                  <Card key={feature} className="p-4 border border-border/60 hover:border-accent/40 transition-colors">
                     <div className="flex items-start gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-[#ff5a3c]/10 text-[#ff5a3c] flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <div className="h-8 w-8 rounded-lg bg-accent/10 text-accent flex items-center justify-center flex-shrink-0 mt-0.5">
                         <Check className="h-5 w-5" />
                       </div>
                       <p className="text-base sm:text-lg font-semibold text-foreground pt-1">{feature}</p>
@@ -357,7 +347,7 @@ export function SEOToolPage({
                   <Link
                     key={link.href}
                     href={link.href}
-                    className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:border-[#ff5a3c]/50 hover:text-[#ff5a3c] transition-colors"
+                    className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:border-accent/50 hover:text-accent transition-colors"
                   >
                     {link.label}
                   </Link>

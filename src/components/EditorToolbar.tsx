@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
+import React from "react";
 import { 
   MousePointer2,
   PenLine,
@@ -158,65 +157,56 @@ export function EditorFloatingControls({
   canUndo: boolean;
   canRedo: boolean;
 }) {
-  const [mounted, setMounted] = useState(false);
-  const isMobile = useIsMobile();
-  useEffect(() => setMounted(true), []);
+  return (
+    <div className="flex items-center gap-1 bg-card/90 backdrop-blur-md border border-border shadow-lg rounded-full px-2 py-1">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onUndo}
+        disabled={!canUndo}
+        className="w-9 h-9"
+        aria-label="Undo"
+      >
+        <Undo2 className="w-4 h-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onRedo}
+        disabled={!canRedo}
+        className="w-9 h-9"
+        aria-label="Redo"
+      >
+        <Redo2 className="w-4 h-4" />
+      </Button>
 
-  const content = useMemo(() => {
-    if (isMobile) return null;
-    
-    return (
-      <div className="pointer-events-none fixed inset-x-0 bottom-4 pb-[env(safe-area-inset-bottom)] flex justify-center z-[60]">
-        <div className="pointer-events-auto flex items-center gap-1 bg-card/80 backdrop-blur-md border border-border shadow-lg rounded-full px-2 py-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onUndo}
-            disabled={!canUndo}
-            className="w-9 h-9"
-          >
-            <Undo2 className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onRedo}
-            disabled={!canRedo}
-            className="w-9 h-9"
-          >
-            <Redo2 className="w-4 h-4" />
-          </Button>
+      <Separator orientation="vertical" className="h-6 mx-1" />
 
-          <Separator orientation="vertical" className="h-6 mx-1" />
-
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onZoomOut}
-            disabled={zoom <= 50}
-            className="w-9 h-9"
-          >
-            <Minus className="w-4 h-4" />
-          </Button>
-          <span className="text-sm font-semibold text-foreground w-12 text-center tabular-nums">
-            {zoom}%
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onZoomIn}
-            disabled={zoom >= 200}
-            className="w-9 h-9"
-          >
-            <Plus className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
-    );
-  }, [canRedo, canUndo, onRedo, onUndo, onZoomIn, onZoomOut, zoom, isMobile]);
-
-  if (!mounted || isMobile) return null;
-  return createPortal(content, document.body);
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onZoomOut}
+        disabled={zoom <= 50}
+        className="w-9 h-9"
+        aria-label="Zoom out"
+      >
+        <Minus className="w-4 h-4" />
+      </Button>
+      <span className="text-sm font-semibold text-foreground w-12 text-center tabular-nums">
+        {zoom}%
+      </span>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onZoomIn}
+        disabled={zoom >= 200}
+        className="w-9 h-9"
+        aria-label="Zoom in"
+      >
+        <Plus className="w-4 h-4" />
+      </Button>
+    </div>
+  );
 }
 
 // Mobile Top Header Controls

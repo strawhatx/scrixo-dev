@@ -7,7 +7,7 @@ import { useEditor } from "@/hooks/useEditor";
 import { PDFViewer } from "@/components/PDFViewerClient";
 import { EditorFloatingControls, EditorToolbar, MobileTopControls } from "@/components/EditorToolbar";
 import { SignaturePad } from "./SignaturePad";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { MergeModal } from "@/components/MergeModal";
@@ -17,6 +17,7 @@ import { RearrangeModal } from "@/components/RearrangeModal";
 import { DrawToolsPanel, DrawToolsMobileBar } from "@/components/DrawToolsPanel";
 import { FieldsPanel, FieldsMobileBar } from "@/components/FieldsPanel";
 import { TextToolsPanel } from "@/components/TextToolsPanel";
+import type { TextOverlay } from "@/lib/pdf-utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { PDFUpload } from "@/components/PDFUpload";
 import { useFileStore } from "@/store/useFileStore";
@@ -33,6 +34,8 @@ export default function Editor() {
   const signToolActivated = React.useRef(false);
   const [pagesSidebarOpen, setPagesSidebarOpen] = React.useState(false);
   const [showExportCapture, setShowExportCapture] = React.useState(false);
+  const [activeText, setActiveText] = React.useState<TextOverlay | null>(null);
+  const [signingField, setSigningField] = React.useState<{ id: string; page: number } | null>(null);
 
   const handleDownloadAndCapture = async () => {
     const ok = await editor.handleDownload();
@@ -97,13 +100,97 @@ export default function Editor() {
     }
     if (tool === "sign") {
       editor.setActiveTool("sign");
-      // Open the signature modal immediately unless the user is already holding a signature to place.
+      editor.setPlacementArmed(false);
       if (!editor.pendingSignature) {
         editor.handleSignRequest();
       }
       return;
     }
+    if (tool === "text") {
+      editor.setActiveTool("text");
+      editor.setPlacementArmed(true);
+      return;
+    }
+    if (tool === "field") {
+      editor.setActiveTool("field");
+      editor.setPlacementArmed(false);
+      return;
+    }
     editor.setActiveTool(tool);
+    editor.setPlacementArmed(false);
+  };
+
+  const armFieldKind = (kind: import("@/types/fields").FieldKind) => {
+    editor.setFieldKind(kind);
+    editor.setPlacementArmed(true);
+  };
+
+  const handleActiveTextChange = (overlay: TextOverlay | null) => {
+    setActiveText(overlay);
+    if (!overlay) return;
+    if (typeof overlay.fontSize === "number") editor.setTextFontSize(overlay.fontSize);
+    if (overlay.color) editor.setTextColor(overlay.color);
+    if (overlay.fontFamily) editor.setTextFontFamily(overlay.fontFamily);
+    editor.setTextBold(Boolean(overlay.bold));
+    editor.setTextItalic(Boolean(overlay.italic));
+    if (overlay.align) editor.setTextAlign(overlay.align);
+  };
+
+  const patchActiveText = (patch: Partial<TextOverlay>) => {
+    if (!activeText) return;
+    editor.setTextOverlays(
+      editor.textOverlays.map((t) =>
+        t.id === activeText.id && t.page === activeText.page ? { ...t, ...patch } : t
+      )
+    );
+    setActiveText({ ...activeText, ...patch });
+    editor.saveToHistory();
+  };
+
+  const setTextFontSize = (fontSize: number) => {
+    editor.setTextFontSize(fontSize);
+    patchActiveText({ fontSize });
+  };
+  const setTextColor = (color: string) => {
+    editor.setTextColor(color);
+    patchActiveText({ color });
+  };
+  const setTextFontFamily = (fontFamily: import("@/lib/pdf-utils").TextFontFamily) => {
+    editor.setTextFontFamily(fontFamily);
+    patchActiveText({ fontFamily });
+  };
+  const setTextBold = (bold: boolean) => {
+    editor.setTextBold(bold);
+    patchActiveText({ bold });
+  };
+  const setTextItalic = (italic: boolean) => {
+    editor.setTextItalic(italic);
+    patchActiveText({ italic });
+  };
+  const setTextAlign = (align: import("@/lib/pdf-utils").TextAlign) => {
+    editor.setTextAlign(align);
+    patchActiveText({ align });
+  };
+
+  const duplicateActiveText = () => {
+    if (!activeText) return;
+    const copy: TextOverlay = {
+      ...activeText,
+      id: `text-${Date.now()}`,
+      x: activeText.x + 12,
+      y: activeText.y + 12,
+    };
+    editor.setTextOverlays([...editor.textOverlays, copy]);
+    editor.saveToHistory();
+  };
+
+  const deleteActiveText = () => {
+    if (!activeText) return;
+    editor.setTextOverlays(
+      editor.textOverlays.filter((t) => !(t.id === activeText.id && t.page === activeText.page))
+    );
+    editor.saveToHistory();
+    setActiveText(null);
   };
 
   return (
@@ -147,7 +234,29 @@ export default function Editor() {
           {editor.activeTool === "field" && isMobile && (
             <FieldsMobileBar
               selected={editor.fieldKind}
-              onSelect={editor.setFieldKind}
+              armed={editor.placementArmed}
+              onSelect={armFieldKind}
+            />
+          )}
+          {editor.activeTool === "text" && isMobile && (
+            <TextToolsPanel
+              variant="bar"
+              fontSize={editor.textFontSize}
+              onFontSizeChange={setTextFontSize}
+              fontFamily={editor.textFontFamily}
+              onFontFamilyChange={setTextFontFamily}
+              color={editor.textColor}
+              onColorChange={setTextColor}
+              bold={editor.textBold}
+              onBoldChange={setTextBold}
+              italic={editor.textItalic}
+              onItalicChange={setTextItalic}
+              align={editor.textAlign}
+              onAlignChange={setTextAlign}
+              canDuplicate={Boolean(activeText)}
+              canDelete={Boolean(activeText)}
+              onDuplicate={duplicateActiveText}
+              onDelete={deleteActiveText}
             />
           )}
         </div>
@@ -182,20 +291,14 @@ export default function Editor() {
             onPageOrderChange={editor.setPageOrder}
             onPageCountChange={editor.setTotalPages}
             activeTool={editor.activeTool}
-            dockPanel={
-              editor.activeTool === "field" ? (
-                <FieldsPanel
-                  variant="docked"
-                  selected={editor.fieldKind}
-                  onSelect={editor.setFieldKind}
-                  onClose={() => editor.setActiveTool("select")}
-                />
-              ) : null
-            }
             onSignRequest={editor.handleSignRequest}
             signatureOverlays={editor.signatureOverlays}
             onSignatureOverlaysChange={editor.setSignatureOverlays}
             onSignatureOverlaysCommit={editor.saveToHistory}
+            onSignatureFieldClick={(field) => {
+              setSigningField({ id: field.id, page: field.page });
+              editor.handleSignRequest();
+            }}
             pendingSignature={editor.pendingSignature}
             onPendingSignaturePlaced={() => {
               editor.setPendingSignature(null);
@@ -222,6 +325,8 @@ export default function Editor() {
             onFieldOverlaysChange={editor.setFieldOverlays}
             onFieldOverlaysCommit={editor.saveToHistory}
             fieldKind={editor.fieldKind}
+            placementArmed={editor.placementArmed}
+            onPlacementConsumed={() => editor.setPlacementArmed(false)}
             textOverlays={editor.textOverlays}
             onTextOverlaysChange={editor.setTextOverlays}
             pendingText={editor.pendingText}
@@ -233,6 +338,50 @@ export default function Editor() {
             onTextOverlaysCommit={editor.saveToHistory}
             textFontSize={editor.textFontSize}
             textColor={editor.textColor}
+            textFontFamily={editor.textFontFamily}
+            textBold={editor.textBold}
+            textItalic={editor.textItalic}
+            textAlign={editor.textAlign}
+            onActiveTextChange={handleActiveTextChange}
+            viewportOverlay={
+              !isMobile && editor.activeTool === "field" ? (
+                <FieldsPanel
+                  selected={editor.fieldKind}
+                  armed={editor.placementArmed}
+                  onSelect={armFieldKind}
+                />
+              ) : !isMobile && editor.activeTool === "text" ? (
+                <TextToolsPanel
+                  fontSize={editor.textFontSize}
+                  onFontSizeChange={setTextFontSize}
+                  fontFamily={editor.textFontFamily}
+                  onFontFamilyChange={setTextFontFamily}
+                  color={editor.textColor}
+                  onColorChange={setTextColor}
+                  bold={editor.textBold}
+                  onBoldChange={setTextBold}
+                  italic={editor.textItalic}
+                  onItalicChange={setTextItalic}
+                  align={editor.textAlign}
+                  onAlignChange={setTextAlign}
+                  canDuplicate={Boolean(activeText)}
+                  canDelete={Boolean(activeText)}
+                  onDuplicate={duplicateActiveText}
+                  onDelete={deleteActiveText}
+                />
+              ) : null
+            }
+            viewportFooter={
+              <EditorFloatingControls
+                onUndo={editor.undo}
+                onRedo={editor.redo}
+                onZoomIn={() => editor.setZoom((z) => Math.min(z + 25, 200))}
+                onZoomOut={() => editor.setZoom((z) => Math.max(z - 25, 50))}
+                zoom={editor.zoom}
+                canUndo={editor.historyIndex > 0}
+                canRedo={editor.historyIndex < editor.historyLength - 1}
+              />
+            }
           />
 
           {editor.activeTool === "draw" && (
@@ -243,37 +392,31 @@ export default function Editor() {
               onColorChange={editor.setDrawColor}
               width={editor.drawWidth}
               onWidthChange={editor.setDrawWidth}
-              className="left-[calc(14rem+0.75rem)] top-6"
+              className="absolute left-[calc(12.25rem+0.75rem)] top-6"
             />
           )}
-
-          {editor.activeTool === "text" && (
-            <TextToolsPanel
-              fontSize={editor.textFontSize}
-              onFontSizeChange={editor.setTextFontSize}
-              color={editor.textColor}
-              onColorChange={editor.setTextColor}
-              className="left-[calc(14rem+0.75rem)] top-6"
-            />
-          )}
-
-          {/* Floating bottom controls (portaled to body for true viewport positioning) */}
-          <EditorFloatingControls
-            onUndo={editor.undo}
-            onRedo={editor.redo}
-            onZoomIn={() => editor.setZoom((z) => Math.min(z + 25, 200))}
-            onZoomOut={() => editor.setZoom((z) => Math.max(z - 25, 50))}
-            zoom={editor.zoom}
-            canUndo={editor.historyIndex > 0}
-            canRedo={editor.historyIndex < editor.historyLength - 1}
-          />
         </div>
 
         {/* Modals */}
         <SignaturePad
           isOpen={editor.showSignaturePad}
-          onClose={() => editor.setShowSignaturePad(false)}
-          onSave={editor.handleSignatureSave}
+          onClose={() => {
+            setSigningField(null);
+            editor.setShowSignaturePad(false);
+          }}
+          onSave={(data) => {
+            if (signingField) {
+              editor.setFieldOverlays(
+                editor.fieldOverlays.map((f) =>
+                  f.id === signingField.id && f.page === signingField.page ? { ...f, value: data } : f
+                )
+              );
+              editor.saveToHistory();
+              setSigningField(null);
+              return;
+            }
+            editor.handleSignatureSave(data);
+          }}
         />
 
         <UpgradeModal
@@ -321,10 +464,20 @@ export default function Editor() {
           <SheetContent side="left" className="w-[280px] p-0">
             <div className="flex flex-col h-full bg-card">
               <div className="px-4 py-3 border-b border-border">
-                <h2 className="text-lg font-semibold">Pages</h2>
+                <SheetTitle className="text-lg font-semibold">Pages</SheetTitle>
               </div>
-              <div className="flex-1 overflow-y-auto p-4">
-                <div className="space-y-2">
+              <div className="flex-1 overflow-y-auto px-3 py-3 bg-muted">
+                <button
+                  type="button"
+                  disabled
+                  title="Add page (coming soon)"
+                  className="w-full h-9 mb-3 rounded-lg border border-black/10 bg-white text-foreground shadow-sm flex items-center px-2.5 disabled:opacity-70"
+                >
+                  <span className="text-lg leading-none">+</span>
+                  <span className="flex-1 text-center text-sm font-medium">Add page</span>
+                  <span className="text-neutral-500 text-xs">▾</span>
+                </button>
+                <div>
                   {Array.from({ length: editor.totalPages }, (_, i) => i + 1).map((pageNum) => (
                     <button
                       key={pageNum}
@@ -332,17 +485,14 @@ export default function Editor() {
                         editor.setCurrentPage(pageNum);
                         setPagesSidebarOpen(false);
                       }}
-                      className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${editor.currentPage === pageNum
-                          ? "bg-primary/10 border-primary text-primary"
-                          : "bg-background border-border hover:bg-muted"
-                        }`}
+                      className={`w-full mb-2 flex items-center gap-3 px-2 py-2 rounded-lg border-[3px] bg-white text-left transition-colors ${
+                        editor.currentPage === pageNum
+                          ? "border-primary"
+                          : "border-transparent hover:border-black/10"
+                      }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">Page {pageNum}</span>
-                        {editor.currentPage === pageNum && (
-                          <span className="text-primary font-bold">•</span>
-                        )}
-                      </div>
+                      <span className="w-4 text-center text-[13px] text-neutral-500 tabular-nums">{pageNum}</span>
+                      <span className="font-medium text-sm">Page {pageNum}</span>
                     </button>
                   ))}
                 </div>
@@ -482,7 +632,7 @@ function EditorHeader({
 
         <Button
           onClick={onDownload}
-          className="gap-2 h-8 px-4 bg-foreground text-background hover:bg-foreground/90"
+          className="gap-2 h-8 px-4 bg-primary text-primary-foreground hover:bg-primary-hover"
         >
           <Download className="w-4 h-4" />
           Download
