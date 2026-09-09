@@ -10,13 +10,13 @@ import {
   Redo2,
   Minus,
   Plus,
-  Search,
   Menu,
   ChevronLeft,
   ChevronRight,
   Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FeedbackButton } from "@/components/FeedbackDialog";
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -64,7 +64,7 @@ export function EditorToolbar({
   // Desktop: Top toolbar (existing design)
   if (!isMobile) {
     return (
-      <div className="flex items-center justify-between bg-card border-b border-border px-4 py-1">
+      <div className="flex items-center bg-card border-b border-border px-4 py-1">
         <div className="flex items-center">
           {tools.map((tool) => (
             <button
@@ -100,12 +100,6 @@ export function EditorToolbar({
               ))}
             </>
           )}
-        </div>
-
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="w-8 h-8">
-            <Search className="w-4 h-4" />
-          </Button>
         </div>
       </div>
     );
@@ -259,12 +253,7 @@ export function MobileTopControls({
       </div>
       
       <div className="flex items-center gap-2">
-        <button
-          className="p-2 touch-manipulation"
-          aria-label="Search"
-        >
-          <Search className="w-5 h-5 text-foreground" />
-        </button>
+        <FeedbackButton source="editor" className="h-8 px-2 text-xs" />
         <button
           onClick={onDownload}
           className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium touch-manipulation flex items-center gap-1.5"

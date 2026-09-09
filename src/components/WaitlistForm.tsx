@@ -85,7 +85,7 @@ export function WaitlistForm({ source, variant = "footer", className, onSuccess 
   }
 
   return (
-    <form className={cn("space-y-3", className)} onSubmit={onSubmit}>
+    <form className={cn("space-y-3 select-text", className)} onSubmit={onSubmit}>
       <div className={cn("flex gap-2", isPostExport ? "flex-col sm:flex-row" : "flex-col sm:flex-row")}>
         <label className="sr-only" htmlFor={`waitlist-email-${source}`}>
           Email

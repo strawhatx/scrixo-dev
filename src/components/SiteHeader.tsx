@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { BrandLogo } from "@/components/BrandLogo";
+import { FeedbackButton, FeedbackDialog } from "@/components/FeedbackDialog";
 
 const GUIDE_LINKS = [
   { href: "/sign-pdf-without-printing", label: "Without printing" },
@@ -24,6 +25,7 @@ const GUIDE_LINKS = [
 
 export function SiteHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [feedbackOpen, setFeedbackOpen] = React.useState(false);
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/40 backdrop-blur-md">
@@ -56,16 +58,7 @@ export function SiteHeader() {
               </DropdownMenuContent>
             </DropdownMenu>
             <div className="h-5 w-px bg-border mx-1" />
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
-              <Link
-                href="https://github.com/strawhatx/scrixo-dev"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Report Bug"
-              >
-                REPORT BUG
-              </Link>
-            </Button>
+            <FeedbackButton source="nav" />
             <Button
               variant="ghost"
               size="icon"
@@ -112,15 +105,21 @@ export function SiteHeader() {
                 </Button>
               ))}
               <div className="h-px bg-border my-2" />
-              <Button variant="ghost" className="justify-start" asChild onClick={() => setMobileMenuOpen(false)}>
-                <Link href="https://github.com/strawhatx/scrixo-dev" target="_blank" rel="noopener noreferrer">
-                  Report Bug
-                </Link>
+              <Button
+                variant="ghost"
+                className="justify-start"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setFeedbackOpen(true);
+                }}
+              >
+                Feedback
               </Button>
             </div>
           </nav>
         )}
       </div>
+      <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} source="nav" />
     </header>
   );
 }

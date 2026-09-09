@@ -9,6 +9,23 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { BRAND_NAVY } from "@/lib/colors";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { SIGNATURE_FONTS, signatureFontClassName } from "@/lib/signature-fonts";
+
+async function ensureFontReady(familyStack: string, size: number) {
+  if (typeof document === "undefined" || !document.fonts?.load) return;
+  try {
+    await document.fonts.load(`${size}px ${familyStack}`);
+  } catch {
+    const first = familyStack.split(",")[0]?.trim();
+    if (first) {
+      try {
+        await document.fonts.load(`${size}px ${first}`);
+      } catch {
+        // keep going — canvas will fall back to the system stack
+      }
+    }
+  }
+}
 
 export interface SignaturePadProps {
   isOpen: boolean;
@@ -42,28 +59,12 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
   const [uploadDataUrl, setUploadDataUrl] = useState<string | null>(null);
   const [saved, setSaved] = useState<SavedSignature[]>([]);
   const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null);
-  const [selectedFontId, setSelectedFontId] = useState<string>("font-1");
+  const [selectedFontId, setSelectedFontId] = useState<string>(SIGNATURE_FONTS[0].id);
   const [loadingSaved, setLoadingSaved] = useState(false);
 
   const presetColors = useMemo(() => [BRAND_NAVY, "#ef4444", "#111827"], []);
 
-  const fontOptions = useMemo(
-    () => [
-      { id: "sacramento", family: "var(--font-sig-sacramento), Sacramento, cursive" },
-      { id: "zeyada", family: "var(--font-sig-zeyada), Zeyada, cursive" },
-      { id: "nanum-pen-script", family: "var(--font-sig-nanum-pen-script), 'Nanum Pen Script', cursive" },
-      { id: "mr-dafoe", family: "var(--font-sig-mr-dafoe), 'Mr Dafoe', cursive" },
-      { id: "homemade-apple", family: "var(--font-sig-homemade-apple), 'Homemade Apple', cursive" },
-      { id: "rock-salt", family: "var(--font-sig-rock-salt), 'Rock Salt', cursive" },
-      { id: "mrs-saint-delafield", family: "var(--font-sig-mrs-saint-delafield), 'Mrs Saint Delafield', cursive" },
-      { id: "cedarville-cursive", family: "var(--font-sig-cedarville-cursive), 'Cedarville Cursive', cursive" },
-      { id: "kristi", family: "var(--font-sig-kristi), Kristi, cursive" },
-      { id: "dawning-of-a-new-day", family: "var(--font-sig-dawning-of-a-new-day), 'Dawning of a New Day', cursive" },
-      { id: "schoolbell", family: "var(--font-sig-schoolbell), Schoolbell, cursive" },
-      { id: "ms-madi", family: "var(--font-sig-ms-madi), 'Ms Madi', cursive" },
-    ],
-    []
-  );
+  const fontOptions = SIGNATURE_FONTS;
 
   useEffect(() => {
     if (isOpen) {
@@ -117,41 +118,43 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
     return name.length > 0;
   }, [fullName, isEmpty, mode, selectedSaved, uploadDataUrl]);
 
-  const renderTypedSignature = useCallback(
-    (text: string, fontCss: string, color: string) => {
-      const t = text.trim() || "Signature";
-      const canvas = document.createElement("canvas");
-      const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-      const paddingX = 30;
-      const paddingY = 18;
-      const fontSize = 84;
-      const font = `${fontSize}px ${fontCss}`;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return null;
+  useEffect(() => {
+    if (!isOpen || mode !== "type") return;
+    void Promise.all(fontOptions.map((f) => ensureFontReady(f.family, 28)));
+  }, [fontOptions, isOpen, mode]);
 
-      ctx.font = font;
-      const metrics = ctx.measureText(t);
-      const textWidth = Math.ceil(metrics.width);
-      const w = Math.max(320, textWidth + paddingX * 2);
-      const h = 180;
-      canvas.width = Math.floor(w * dpr);
-      canvas.height = Math.floor(h * dpr);
-      canvas.style.width = `${w}px`;
-      canvas.style.height = `${h}px`;
+  const renderTypedSignature = useCallback(async (text: string, fontCss: string, color: string) => {
+    const t = text.trim() || "Signature";
+    const canvas = document.createElement("canvas");
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    const paddingX = 30;
+    const fontSize = 84;
+    const font = `${fontSize}px ${fontCss}`;
+    await ensureFontReady(fontCss, fontSize);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
 
-      const ctx2 = canvas.getContext("2d");
-      if (!ctx2) return null;
-      ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx2.clearRect(0, 0, w, h);
-      ctx2.font = font;
-      ctx2.fillStyle = color;
-      ctx2.textBaseline = "middle";
-      ctx2.textAlign = "left";
-      ctx2.fillText(t, paddingX, h / 2 + 8);
-      return canvas.toDataURL("image/png");
-    },
-    []
-  );
+    ctx.font = font;
+    const metrics = ctx.measureText(t);
+    const textWidth = Math.ceil(metrics.width);
+    const w = Math.max(320, textWidth + paddingX * 2);
+    const h = 180;
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+
+    const ctx2 = canvas.getContext("2d");
+    if (!ctx2) return null;
+    ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx2.clearRect(0, 0, w, h);
+    ctx2.font = font;
+    ctx2.fillStyle = color;
+    ctx2.textBaseline = "middle";
+    ctx2.textAlign = "left";
+    ctx2.fillText(t, paddingX, h / 2 + 8);
+    return canvas.toDataURL("image/png");
+  }, []);
 
   const persistIfRequested = useCallback(
     async (dataUrl: string) => {
@@ -196,7 +199,7 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
       }
     } else {
       const font = fontOptions.find((f) => f.id === selectedFontId)?.family ?? fontOptions[0].family;
-      dataUrl = renderTypedSignature(fullName || "Signature", font, sigColor);
+      dataUrl = await renderTypedSignature(fullName || "Signature", font, sigColor);
     }
 
     if (!dataUrl) return;
@@ -226,30 +229,25 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className={cn(
+            signatureFontClassName,
             "fixed inset-0 z-[80] flex bg-black/40",
-            isMobile ? "items-end justify-center" : "items-center justify-center p-4"
+            "items-stretch justify-center md:items-center md:p-4"
           )}
           onClick={onClose}
         >
           <motion.div
-            initial={isMobile ? { y: "100%" } : { opacity: 0, y: 16, scale: 0.98 }}
-            animate={isMobile ? { y: 0 } : { opacity: 1, y: 0, scale: 1 }}
-            exit={isMobile ? { y: "100%" } : { opacity: 0, y: 16, scale: 0.98 }}
-            transition={isMobile ? { type: "spring", damping: 28, stiffness: 320 } : { duration: 0.18 }}
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 320 }}
             className={cn(
               "bg-white shadow-2xl w-full overflow-hidden flex flex-col",
-              isMobile
-                ? "rounded-t-3xl max-h-[92dvh] pb-[env(safe-area-inset-bottom)]"
-                : "rounded-2xl max-w-[640px] max-h-[90vh]"
+              "h-dvh max-h-dvh rounded-none pb-[env(safe-area-inset-bottom)]",
+              "md:h-auto md:max-h-[90vh] md:rounded-2xl md:max-w-[640px] md:pb-0"
             )}
             onClick={(e) => e.stopPropagation()}
           >
-            {isMobile && (
-              <div className="flex justify-center pt-2 pb-1">
-                <span className="h-1 w-10 rounded-full bg-neutral-300" />
-              </div>
-            )}
-            <div className={cn("flex items-center justify-between pb-2", isMobile ? "px-4 pt-1" : "px-6 pt-5")}>
+            <div className={cn("flex items-center justify-between pb-2", isMobile ? "px-4 pt-4" : "px-6 pt-5")}>
               <h3 className="text-[22px] font-semibold tracking-tight text-neutral-900">
                 Signature
               </h3>
@@ -292,7 +290,7 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
               })}
             </div>
 
-            <div className={cn("flex-1 overflow-y-auto py-5", isMobile ? "px-4" : "px-6")}>
+            <div className={cn("flex-1 min-h-0 overflow-y-auto py-5", isMobile ? "px-4" : "px-6")}>
               {saved.length > 0 && (
                 <div className="mb-4">
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400 mb-2">
@@ -419,7 +417,10 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
                     canvasProps={{
                       width: 580,
                       height: 220,
-                      className: cn("w-full bg-neutral-100", isMobile ? "h-[180px]" : "h-[220px]"),
+                      className: cn(
+                        "w-full bg-neutral-100",
+                        isMobile ? "h-[min(42dvh,280px)]" : "h-[220px]"
+                      ),
                     }}
                     backgroundColor="rgba(0,0,0,0)"
                     penColor={sigColor}
@@ -460,7 +461,7 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
                     onClick={() => uploadInputRef.current?.click()}
                     className={cn(
                       "w-full rounded-xl bg-neutral-100 flex flex-col items-center justify-center gap-2 text-neutral-500 hover:bg-neutral-200/70",
-                      isMobile ? "h-[180px]" : "h-[220px]"
+                      isMobile ? "h-[min(42dvh,280px)]" : "h-[220px]"
                     )}
                   >
                     {uploadDataUrl ? (
@@ -478,7 +479,7 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
 
             <div
               className={cn(
-                "flex gap-3 border-t border-neutral-100",
+                "flex gap-3 border-t border-neutral-100 shrink-0",
                 isMobile ? "flex-col px-4 py-3" : "items-center justify-between px-6 py-4"
               )}
             >

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { signatureFontClassName } from "@/lib/signature-fonts";
 
 export const metadata: Metadata = {
   title: "Scrixo | Editor",
@@ -10,5 +11,5 @@ export default function EditLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return <div className={`${signatureFontClassName} h-dvh`}>{children}</div>;
 }

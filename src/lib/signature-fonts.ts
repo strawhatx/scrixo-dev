@@ -42,7 +42,7 @@ const sigDawningOfANewDay = Dawning_of_a_New_Day({
 const sigSchoolbell = Schoolbell({ subsets: ["latin"], weight: "400", variable: "--font-sig-schoolbell" });
 const sigMsMadi = Ms_Madi({ subsets: ["latin"], weight: "400", variable: "--font-sig-ms-madi" });
 
-/** Apply only on /edit — marketing pages should not pay this font tax. */
+/** Apply on /edit so typed-signature CSS variables and @font-face exist. */
 export const signatureFontClassName = [
   sigSacramento.variable,
   sigZeyada.variable,
@@ -57,3 +57,21 @@ export const signatureFontClassName = [
   sigSchoolbell.variable,
   sigMsMadi.variable,
 ].join(" ");
+
+/** Real next/font family stacks — canvas cannot resolve CSS `var()`. */
+export const SIGNATURE_FONTS = [
+  { id: "sacramento", family: sigSacramento.style.fontFamily },
+  { id: "zeyada", family: sigZeyada.style.fontFamily },
+  { id: "nanum-pen-script", family: sigNanumPenScript.style.fontFamily },
+  { id: "mr-dafoe", family: sigMrDafoe.style.fontFamily },
+  { id: "homemade-apple", family: sigHomemadeApple.style.fontFamily },
+  { id: "rock-salt", family: sigRockSalt.style.fontFamily },
+  { id: "mrs-saint-delafield", family: sigMrsSaintDelafield.style.fontFamily },
+  { id: "cedarville-cursive", family: sigCedarvilleCursive.style.fontFamily },
+  { id: "kristi", family: sigKristi.style.fontFamily },
+  { id: "dawning-of-a-new-day", family: sigDawningOfANewDay.style.fontFamily },
+  { id: "schoolbell", family: sigSchoolbell.style.fontFamily },
+  { id: "ms-madi", family: sigMsMadi.style.fontFamily },
+] as const;
+
+export type SignatureFontId = (typeof SIGNATURE_FONTS)[number]["id"];

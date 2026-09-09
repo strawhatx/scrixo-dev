@@ -24,6 +24,7 @@ import { useFileStore } from "@/store/useFileStore";
 import { ExportSuccessCapture } from "@/components/ExportSuccessCapture";
 import { hasJoinedWaitlist } from "@/components/WaitlistForm";
 import { BrandLogo } from "@/components/BrandLogo";
+import { FeedbackButton } from "@/components/FeedbackDialog";
 
 /**
  * Staff-Level Editor Component
@@ -583,11 +584,7 @@ function EditorHeader({
       </span>
 
       <div className="ml-auto flex items-center gap-2">
-        <Button variant="outline" size="sm" className="h-8 px-4" asChild>
-          <a href="https://x.com/heynathanielj" target="_blank" rel="noopener noreferrer">
-            Contact
-          </a>
-        </Button>
+        <FeedbackButton source="editor" className="h-8 px-4" />
 
         {onSave && !isFree && (
           <Button

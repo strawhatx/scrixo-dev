@@ -47,14 +47,15 @@ export function UpgradeModal({ isOpen, onClose, reason = "signature" }: UpgradeM
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-50 flex items-end justify-center md:items-center md:p-4"
           onClick={onClose}
         >
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-card rounded-2xl shadow-lg max-w-md w-full overflow-hidden"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 320 }}
+            className="bg-card rounded-t-3xl md:rounded-2xl shadow-lg max-w-md w-full overflow-hidden relative max-h-[92dvh] md:max-h-none"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header with gradient */}

@@ -1,37 +1,35 @@
 /**
- * Waitlist receiver only.
- * Paste this into Extensions → Apps Script on the WAITLIST spreadsheet.
+ * Feedback receiver only — not the waitlist.
+ * Paste this into Extensions → Apps Script on the FEEDBACK spreadsheet
+ * (a separate Google Sheet from the waitlist file).
  * Deploy → New deployment → Web app
  *   Execute as: Me
  *   Who has access: Anyone
- * Then put the web app URL in GOOGLE_SHEETS_WEBHOOK_URL.
+ * Then put the web app URL in FEEDBACK_SHEETS_WEBHOOK_URL.
  *
  * Each POST must include:
- *   project  — tab name (this app sends "Scrixo")
- *   headers  — column names for that project
+ *   project  — tab name (this app sends "Scrixo Feedback")
+ *   headers  — column names
  *   values   — object keyed by those header names
  *
- * If the tab does not exist, it is created. Headers are written from the
- * payload, not hardcoded here.
- *
  * Optional: Project Settings → Script properties
- *   WAITLIST_SECRET  — must match WAITLIST_SECRET in the app
+ *   FEEDBACK_SECRET  — must match FEEDBACK_SECRET in the app
  *   NOTIFY_EMAIL     — your address, or comma-separated
  *   ALLOWED_PROJECTS — comma-separated tab names
  *
- * Duplicate emails are skipped. New unique signups append a row.
+ * Every note is appended. Email / Reply is optional.
  */
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents || "{}");
-    const email = String(data.email || "")
+    const reply = String(data.email || data.reply || "")
       .trim()
       .toLowerCase();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (reply && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reply)) {
       return json_({ ok: false, error: "invalid_email" });
     }
 
-    const expected = PropertiesService.getScriptProperties().getProperty("WAITLIST_SECRET");
+    const expected = PropertiesService.getScriptProperties().getProperty("FEEDBACK_SECRET");
     if (expected && data.secret !== expected) {
       return json_({ ok: false, error: "unauthorized" });
     }
@@ -57,8 +55,8 @@ function doPost(e) {
     }
 
     const values = data.values && typeof data.values === "object" ? data.values : {};
-    if (headerIndex_(headers, "Email") !== -1 && !values.Email) {
-      values.Email = email;
+    if (headerIndex_(headers, "Reply") !== -1 && !values.Reply && reply) {
+      values.Reply = reply;
     }
     if (headerIndex_(headers, "Timestamp") !== -1 && !values.Timestamp) {
       values.Timestamp = new Date();
@@ -70,32 +68,19 @@ function doPost(e) {
       sheet = ss.insertSheet(tabName);
     }
     const sheetHeaders = ensureHeaders_(sheet, headers);
-    const emailCol = headerIndex_(sheetHeaders, "Email");
-    const already =
-      emailCol !== -1 &&
-      sheet.getLastRow() > 1 &&
-      sheet
-        .getRange(2, emailCol + 1, sheet.getLastRow() - 1, 1)
-        .getValues()
-        .some(function (row) {
-          return String(row[0]).toLowerCase() === email;
-        });
-
-    if (!already) {
-      const row = sheetHeaders.map(function (header) {
-        if (values[header] !== undefined && values[header] !== "") {
-          return values[header];
-        }
-        const key = Object.keys(values).find(function (name) {
-          return String(name).toLowerCase() === String(header).toLowerCase();
-        });
-        return key ? values[key] : "";
+    const row = sheetHeaders.map(function (header) {
+      if (values[header] !== undefined && values[header] !== "") {
+        return values[header];
+      }
+      const key = Object.keys(values).find(function (name) {
+        return String(name).toLowerCase() === String(header).toLowerCase();
       });
-      sheet.appendRow(row);
-      notify_(tabName, sheetHeaders, row);
-    }
+      return key ? values[key] : "";
+    });
+    sheet.appendRow(row);
+    notify_(tabName, sheetHeaders, row);
 
-    return json_({ ok: true, project: tabName, headers: sheetHeaders, duplicate: already });
+    return json_({ ok: true, project: tabName, headers: sheetHeaders });
   } catch (err) {
     return json_({ ok: false, error: String(err) });
   }
@@ -184,8 +169,8 @@ function notify_(project, headers, row) {
   });
   MailApp.sendEmail({
     to: to.join(","),
-    subject: "Waitlist: " + project,
-    body: "A new signup landed on " + project + ".\n\n" + lines.join("\n"),
+    subject: "Feedback: " + project,
+    body: "A new note landed on " + project + ".\n\n" + lines.join("\n"),
   });
 }
 

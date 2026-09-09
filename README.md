@@ -43,13 +43,20 @@ npm run build
 
 Copy `.env.example` to `.env.local`.
 
-**Waitlist** (Google Sheet webhook, same pattern as other Scrixo properties):
+**Waitlist** — `scripts/google-sheet-waitlist.js` on the waitlist spreadsheet:
 
 - `GOOGLE_SHEETS_WEBHOOK_URL`
 - `WAITLIST_PROJECT=Scrixo`
 - `WAITLIST_SECRET`
 
-Deploy the Apps Script as a web app: Execute as Me, Who has access = Anyone. After changing access, ship a new deployment version.
+**Feedback** — separate spreadsheet and `scripts/google-sheet-feedback.js` (do not paste the waitlist script there):
+
+- `FEEDBACK_SHEETS_WEBHOOK_URL`
+- `FEEDBACK_PROJECT=Scrixo Feedback`
+- `FEEDBACK_HEADERS=Timestamp,Category,Message,Reply,Source,Page,UserAgent`
+- `FEEDBACK_SECRET`
+
+On the feedback file, set script property `FEEDBACK_SECRET` to match. Category is tagged on the server (bug / feature request / friction / positive / question). Optional contact email is the Reply column.
 
 **Supabase** vars are still listed in `.env.example` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`). Auth, cloud save, and saved signatures are **off this iteration** (`isSupabaseConfigured` is hard-false). Guest signing does not need them.
 
