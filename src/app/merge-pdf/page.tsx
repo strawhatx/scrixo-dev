@@ -1,18 +1,22 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 export const metadata: Metadata = {
   title: "Merge PDF Files Online Free - Combine PDFs Instantly | Scrixo",
   description: "Merge PDF files online free with no login required. Combine multiple PDFs into one document instantly. Join PDF pages online with no watermark. Free PDF merger tool.",
   keywords: "merge pdf files online free, combine pdf files no login, join pdf pages online, merge multiple pdfs free, combine pdfs instantly, merge pdf without watermark",
+  robots: { index: false, follow: false },
   openGraph: {
     title: "Merge PDF Files Online Free - Combine PDFs Instantly",
     description: "Merge PDF files online free with no login required. Combine multiple PDFs into one document instantly.",
     url: "https://scrixo.com/merge-pdf",
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "Merge PDF Files Online Free - Combine PDFs Instantly",
     description: "Merge PDF files online free with no login required. Combine multiple PDFs into one document instantly.",
   },

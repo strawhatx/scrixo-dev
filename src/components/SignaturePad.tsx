@@ -4,10 +4,10 @@ import SignatureCanvas from "react-signature-canvas";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/lib/supabase";
 import { Check, Trash2, Type, PenLine, Upload, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { BRAND_NAVY } from "@/lib/colors";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export interface SignaturePadProps {
@@ -31,14 +31,12 @@ const GUEST_SIGNATURES_KEY = "scrixo_saved_signatures_guest_v1";
 export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: SignaturePadProps) {
   const sigCanvas = useRef<SignatureCanvas>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
-  const customColorInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
-  const [resolvedUserId, setResolvedUserId] = useState<string | undefined>(undefined);
 
-  const [mode, setMode] = useState<SigMode>("type");
+  const [mode, setMode] = useState<SigMode>("draw");
   const [isEmpty, setIsEmpty] = useState(true);
   const [fullName, setFullName] = useState("");
-  const [sigColor, setSigColor] = useState("#111827");
+  const [sigColor, setSigColor] = useState(BRAND_NAVY);
   const [sigStrokeWidth, setSigStrokeWidth] = useState(5);
   const [saveForFuture, setSaveForFuture] = useState(true);
   const [uploadDataUrl, setUploadDataUrl] = useState<string | null>(null);
@@ -47,15 +45,7 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
   const [selectedFontId, setSelectedFontId] = useState<string>("font-1");
   const [loadingSaved, setLoadingSaved] = useState(false);
 
-  const presetColors = useMemo(
-    () => ["#000000", "#1d4ed8", "#2563eb", "#ef4444"],
-    []
-  );
-  const customRainbowBg =
-    "conic-gradient(from 0deg, #ff004c, #ff8a00, #ffe600, #18d26b, #00c2ff, #7b61ff, #ff00c8, #ff004c)";
-  const isPresetSelected = presetColors.some((c) => c.toLowerCase() === sigColor.toLowerCase());
-  const isCustomSelected = !isPresetSelected;
-  const customSwatchColor = isPresetSelected ? "#ff5a3c" : sigColor;
+  const presetColors = useMemo(() => [BRAND_NAVY, "#ef4444", "#111827"], []);
 
   const fontOptions = useMemo(
     () => [
@@ -78,15 +68,10 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
   useEffect(() => {
     if (isOpen) {
       setIsEmpty(true);
-      setMode("type");
+      setMode("draw");
       setUploadDataUrl(null);
       setSelectedSavedId(null);
       setSigStrokeWidth(5);
-      // Resolve logged-in user for signature persistence (DB vs localStorage).
-      supabase.auth
-        .getUser()
-        .then(({ data }) => setResolvedUserId(data?.user?.id))
-        .catch(() => setResolvedUserId(undefined));
     }
   }, [isOpen]);
 
@@ -94,45 +79,16 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
     if (!isOpen) return;
     setLoadingSaved(true);
     try {
-      if (resolvedUserId) {
-        const { data, error } = await supabase
-          .from("signatures")
-          .select("id,label,image_data,created_at")
-          .eq("user_id", resolvedUserId)
-          .order("created_at", { ascending: false });
-        if (error) {
-          // If the table isn't present yet, fall back to guest storage.
-          const msg = String((error as any)?.message ?? "");
-          if (msg.toLowerCase().includes("does not exist")) {
-            const raw = localStorage.getItem(GUEST_SIGNATURES_KEY);
-            const parsed: SavedSignature[] = raw ? JSON.parse(raw) : [];
-            setSaved(parsed);
-          } else {
-            console.warn("Failed to load signatures:", error);
-            setSaved([]);
-          }
-        } else {
-          const mapped: SavedSignature[] =
-            (data ?? []).map((r: any) => ({
-              id: String(r.id),
-              label: r.label ?? null,
-              imageData: String(r.image_data),
-              createdAt: String(r.created_at),
-            })) ?? [];
-          setSaved(mapped);
-        }
-      } else {
-        const raw = localStorage.getItem(GUEST_SIGNATURES_KEY);
-        const parsed: SavedSignature[] = raw ? JSON.parse(raw) : [];
-        setSaved(parsed);
-      }
+      const raw = localStorage.getItem(GUEST_SIGNATURES_KEY);
+      const parsed: SavedSignature[] = raw ? JSON.parse(raw) : [];
+      setSaved(parsed);
     } catch (err) {
       console.warn("Failed to load signatures:", err);
       setSaved([]);
     } finally {
       setLoadingSaved(false);
     }
-  }, [isOpen, resolvedUserId]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -202,60 +158,30 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
       if (!saveForFuture) return;
       const label = fullName.trim() || "Signature";
       const createdAt = new Date().toISOString();
-      if (resolvedUserId) {
-        const { data, error } = await supabase
-          .from("signatures")
-          .insert([{ user_id: resolvedUserId, label, image_data: dataUrl }])
-          .select("id,label,image_data,created_at")
-          .single();
-        if (error) {
-          console.warn("Failed to save signature to DB:", error);
-          // Fall back to guest storage
-          const id = `guest-${Date.now()}`;
-          const next: SavedSignature[] = [{ id, label, imageData: dataUrl, createdAt }, ...saved];
-          setSaved(next);
-          localStorage.setItem(GUEST_SIGNATURES_KEY, JSON.stringify(next));
-          return;
-        }
-        const row: SavedSignature = {
-          id: String((data as any).id),
-          label: (data as any).label ?? null,
-          imageData: String((data as any).image_data),
-          createdAt: String((data as any).created_at),
-        };
-        setSaved((prev) => [row, ...prev]);
-      } else {
-        const id = `guest-${Date.now()}`;
-        const next: SavedSignature[] = [{ id, label, imageData: dataUrl, createdAt }, ...saved];
-        setSaved(next);
+      const id = `guest-${Date.now()}`;
+      const next: SavedSignature[] = [{ id, label, imageData: dataUrl, createdAt }, ...saved];
+      setSaved(next);
+      try {
         localStorage.setItem(GUEST_SIGNATURES_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
       }
     },
-    [fullName, resolvedUserId, saveForFuture, saved]
+    [fullName, saveForFuture, saved]
   );
 
-  const handleDeleteSaved = useCallback(
-    async (id: string) => {
+  const handleDeleteSaved = useCallback(async (id: string) => {
+    setSaved((prev) => {
+      const next = prev.filter((s) => s.id !== id);
       try {
-        if (resolvedUserId) {
-          const { error } = await supabase.from("signatures").delete().eq("id", id).eq("user_id", resolvedUserId);
-          if (error) console.warn("Failed to delete signature:", error);
-        }
-      } finally {
-        setSaved((prev) => {
-          const next = prev.filter((s) => s.id !== id);
-          try {
-            if (!resolvedUserId) localStorage.setItem(GUEST_SIGNATURES_KEY, JSON.stringify(next));
-          } catch {
-            // ignore
-          }
-          return next;
-        });
-        if (selectedSavedId === id) setSelectedSavedId(null);
+        localStorage.setItem(GUEST_SIGNATURES_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
       }
-    },
-    [resolvedUserId, selectedSavedId]
-  );
+      return next;
+    });
+    if (selectedSavedId === id) setSelectedSavedId(null);
+  }, [selectedSavedId]);
 
   const handlePlace = useCallback(async () => {
     let dataUrl: string | null = null;
@@ -299,455 +225,289 @@ export function SignaturePad({ isOpen, onClose, onSave, showUpgradePrompt }: Sig
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-foreground/50 backdrop-blur-sm z-[60] flex items-end justify-center"
+          className={cn(
+            "fixed inset-0 z-[80] flex bg-black/40",
+            isMobile ? "items-end justify-center" : "items-center justify-center p-4"
+          )}
           onClick={onClose}
         >
           <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="bg-card rounded-t-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col"
+            initial={isMobile ? { y: "100%" } : { opacity: 0, y: 16, scale: 0.98 }}
+            animate={isMobile ? { y: 0 } : { opacity: 1, y: 0, scale: 1 }}
+            exit={isMobile ? { y: "100%" } : { opacity: 0, y: 16, scale: 0.98 }}
+            transition={isMobile ? { type: "spring", damping: 28, stiffness: 320 } : { duration: 0.18 }}
+            className={cn(
+              "bg-white shadow-2xl w-full overflow-hidden flex flex-col",
+              isMobile
+                ? "rounded-t-3xl max-h-[92dvh] pb-[env(safe-area-inset-bottom)]"
+                : "rounded-2xl max-w-[640px] max-h-[90vh]"
+            )}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <h3 className="font-display text-xl font-black tracking-tight text-foreground">
-                Create and place signature
+            {isMobile && (
+              <div className="flex justify-center pt-2 pb-1">
+                <span className="h-1 w-10 rounded-full bg-neutral-300" />
+              </div>
+            )}
+            <div className={cn("flex items-center justify-between pb-2", isMobile ? "px-4 pt-1" : "px-6 pt-5")}>
+              <h3 className="text-[22px] font-semibold tracking-tight text-neutral-900">
+                Signature
               </h3>
               <button
                 type="button"
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="text-neutral-400 hover:text-neutral-700 transition-colors"
                 onClick={onClose}
                 aria-label="Close"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             {showUpgradePrompt && (
-              <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 m-6">
+              <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 mx-6 mb-2">
                 <p className="text-sm text-foreground">
                   <strong>You've used your free signature.</strong> Upgrade to Pro for unlimited signatures!
                 </p>
               </div>
             )}
 
-            {/* Mobile: Top tabs */}
-            {isMobile && (
-              <div className="flex items-center gap-1 px-4 pt-2 pb-3 border-b border-border">
-                <button
-                  type="button"
-                  onClick={() => setMode("type")}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium",
-                    mode === "type"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted"
-                  )}
-                >
-                  <Type className="w-4 h-4" />
-                  <span>Type</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode("draw")}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium",
-                    mode === "draw"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted"
-                  )}
-                >
-                  <PenLine className="w-4 h-4" />
-                  <span>Draw</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode("upload")}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium",
-                    mode === "upload"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted"
-                  )}
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>Upload</span>
-                </button>
-              </div>
-            )}
-
-            <div className="flex-1 overflow-y-auto">
-              <div className={cn("min-h-[320px]", isMobile ? "flex flex-col" : "grid grid-cols-[220px_1fr]")}>
-              {/* Desktop: Left nav */}
-              {!isMobile && (
-              <aside className="border-r border-border bg-muted/10">
-                <div className="p-4 space-y-3">
+            <div className={cn("flex items-center gap-6 border-b border-neutral-200", isMobile ? "px-4" : "px-6")}>
+              {(["draw", "type", "upload"] as const).map((id) => {
+                const label = id === "draw" ? "Draw" : id === "type" ? "Type" : "Upload";
+                const active = mode === id;
+                return (
                   <button
+                    key={id}
                     type="button"
+                    onClick={() => setMode(id)}
                     className={cn(
-                      "w-full rounded-xl border p-3 text-left transition-colors",
-                      mode === "type"
-                        ? "bg-primary border-primary text-primary-foreground"
-                        : "bg-transparent border-transparent hover:bg-muted/50 text-foreground"
+                      "relative pb-3 text-[15px] font-medium transition-colors",
+                      active ? "text-primary" : "text-neutral-400 hover:text-neutral-600"
                     )}
-                    onClick={() => setMode("type")}
                   >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={cn(
-                          "h-8 w-8 rounded-lg flex items-center justify-center",
-                          mode === "type" ? "bg-primary-foreground/15" : "bg-muted"
-                        )}
-                      >
-                        <Type className={cn("h-4 w-4", mode === "type" ? "text-primary-foreground" : "text-foreground")} />
-                      </div>
-                      <div>
-                        <div className="text-base font-bold leading-tight">Type</div>
-                        <div className={cn("text-xs mt-1", mode === "type" ? "text-primary-foreground/85" : "text-muted-foreground")}>
-                          Enter your name and create a signature with ready-made font
-                        </div>
-                      </div>
-                    </div>
+                    {label}
+                    {active && <span className="absolute left-0 right-0 -bottom-px h-[3px] rounded-full bg-primary" />}
                   </button>
+                );
+              })}
+            </div>
 
-                  <button
-                    type="button"
-                    className={cn(
-                      "w-full rounded-xl p-1 text-left transition-colors hover:bg-muted/50",
-                      mode === "draw" ? "bg-muted/50" : ""
-                    )}
-                    onClick={() => setMode("draw")}
-                  >
-                    <div className="flex items-start gap-3 p-2">
-                      <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                        <PenLine className="h-4 w-4 text-foreground" />
-                      </div>
-                      <div>
-                        <div className="text-base font-bold leading-tight">Draw</div>
-                        <div className="text-xs mt-1 text-muted-foreground">
-                          Handwrite your signature using mouse or trackpad
+            <div className={cn("flex-1 overflow-y-auto py-5", isMobile ? "px-4" : "px-6")}>
+              {saved.length > 0 && (
+                <div className="mb-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400 mb-2">
+                    Saved
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {saved.map((s) => {
+                      const isSel = s.id === selectedSavedId;
+                      return (
+                        <div key={s.id} className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSavedId(isSel ? null : s.id)}
+                            className={cn(
+                              "h-12 w-24 rounded-lg border bg-white p-1.5 flex items-center justify-center overflow-hidden",
+                              isSel ? "border-primary ring-2 ring-primary/20" : "border-neutral-200 hover:bg-neutral-50"
+                            )}
+                            title={s.label ?? "Saved signature"}
+                          >
+                            <img src={s.imageData} alt="Saved signature" className="max-h-full max-w-full object-contain" />
+                          </button>
+                          <button
+                            type="button"
+                            className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full border border-neutral-200 bg-white shadow-sm hover:bg-neutral-50 flex items-center justify-center"
+                            onClick={() => handleDeleteSaved(s.id)}
+                            aria-label="Delete saved signature"
+                          >
+                            <Trash2 className="h-3 w-3 text-neutral-400" />
+                          </button>
                         </div>
-                      </div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    className={cn(
-                      "w-full rounded-xl p-1 text-left transition-colors hover:bg-muted/50",
-                      mode === "upload" ? "bg-muted/50" : ""
-                    )}
-                    onClick={() => setMode("upload")}
-                  >
-                    <div className="flex items-start gap-3 p-2">
-                      <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-                        <Upload className="h-4 w-4 text-foreground" />
-                      </div>
-                      <div>
-                        <div className="text-base font-bold leading-tight">Upload</div>
-                        <div className="text-xs mt-1 text-muted-foreground">
-                          Use signature image from your device
-                        </div>
-                      </div>
-                    </div>
-                  </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </aside>
               )}
 
-              {/* Content */}
-              <section className={cn("p-4", isMobile && "flex-1")}>
-                {/* Saved signatures row */}
-                <div className="mb-6">
-                  <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground/70 mb-3">
-                    Saved signatures {resolvedUserId ? "(account)" : "(device)"}
+              {mode === "type" && (
+                <div>
+                  <Input
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Enter full name"
+                    className="h-12 w-full min-w-0 text-base border-2 border-primary/40 focus-visible:ring-0 focus-visible:border-primary"
+                  />
+                  <div className="mt-3 flex items-center gap-2">
+                    {presetColors.map((c) => {
+                      const isSelected = c.toLowerCase() === sigColor.toLowerCase();
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setSigColor(c)}
+                          className={cn(
+                            "h-8 w-8 rounded-full border border-white shadow-sm flex items-center justify-center",
+                            isSelected ? "ring-2 ring-offset-1 ring-primary" : "border-neutral-200"
+                          )}
+                          style={{ backgroundColor: c }}
+                          aria-label={`Ink ${c}`}
+                        >
+                          {isSelected ? <Check className="h-3 w-3 text-white" /> : null}
+                        </button>
+                      );
+                    })}
                   </div>
-                  {loadingSaved ? (
-                    <div className="text-sm text-muted-foreground">Loading…</div>
-                  ) : saved.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">No saved signatures yet.</div>
-                  ) : (
-                    <div className="flex flex-wrap gap-3">
-                      {saved.map((s) => {
-                        const isSel = s.id === selectedSavedId;
-                        return (
-                          <div key={s.id} className="relative">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedSavedId(isSel ? null : s.id)}
-                              className={cn(
-                                "h-14 w-28 rounded-xl border bg-background p-2 flex items-center justify-center overflow-hidden",
-                                isSel ? "border-primary ring-2 ring-primary/20" : "border-border hover:bg-muted/40"
-                              )}
-                              title={s.label ?? "Saved signature"}
-                            >
-                              <img src={s.imageData} alt="Saved signature" className="max-h-full max-w-full object-contain" />
-                            </button>
-                            <button
-                              type="button"
-                              className="absolute -top-2 -right-2 h-7 w-7 rounded-full border border-border bg-background shadow-sm hover:bg-muted flex items-center justify-center"
-                              onClick={() => handleDeleteSaved(s.id)}
-                              aria-label="Delete saved signature"
-                              title="Delete"
-                            >
-                              <Trash2 className="h-4 w-4 text-muted-foreground" />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
 
-                {/* Creation UI */}
-                <div className="border border-border rounded-2xl bg-background p-4">
-                  {mode === "type" && (
-                    <div>
-                      <div className="flex items-start gap-6">
-                        <div className="flex-1">
-                          <Input
-                            value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
-                            placeholder="Enter full name"
-                            className="h-11 text-base border-2 border-primary/60 focus-visible:ring-0 focus-visible:border-primary"
-                          />
-                        </div>
-
-                        {/* Color palette (4 preset + custom) */}
-                        <div className="flex items-center gap-2">
-                          {presetColors.map((c) => {
-                            const isSelected = c.toLowerCase() === sigColor.toLowerCase();
-                            return (
-                              <button
-                                key={c}
-                                type="button"
-                                onClick={() => setSigColor(c)}
-                                className={cn(
-                                  "h-9 w-9 rounded-full border flex items-center justify-center",
-                                  isSelected ? "border-primary ring-2 ring-primary/25" : "border-border hover:bg-muted/40"
-                                )}
-                                aria-label={`Color ${c}`}
-                                title={c}
-                              >
-                                <span className="h-6 w-6 rounded-full" style={{ backgroundColor: c }} />
-                              </button>
-                            );
-                          })}
-
-                          <button
-                            type="button"
-                            onClick={() => customColorInputRef.current?.click()}
-                            className={cn(
-                              "h-9 w-9 rounded-full border flex items-center justify-center",
-                              isCustomSelected ? "border-primary ring-2 ring-primary/25" : "border-border hover:bg-muted/40"
-                            )}
-                            aria-label="Custom color"
-                            title="Custom color"
-                          >
-                            <span className="h-7 w-7 rounded-full p-[2px]" style={{ backgroundImage: customRainbowBg }} aria-hidden="true">
-                              <span className="block h-full w-full rounded-full p-[2px]" style={{ background: "hsl(var(--background))" }}>
-                                <span
-                                  className="block h-full w-full rounded-full border border-border"
-                                  style={
-                                    isCustomSelected
-                                      ? { backgroundColor: customSwatchColor }
-                                      : { backgroundImage: customRainbowBg }
-                                  }
-                                />
-                              </span>
-                            </span>
-                            <input
-                              ref={customColorInputRef}
-                              type="color"
-                              value={customSwatchColor}
-                              onChange={(e) => setSigColor(e.target.value)}
-                              className="sr-only"
-                              aria-hidden="true"
-                              tabIndex={-1}
-                            />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 grid grid-cols-2 gap-3 max-h-48 overflow-auto pr-1">
-                        {fontOptions.map((f) => {
-                          const text = (fullName || "Signature").trim() || "Signature";
-                          const isSel = f.id === selectedFontId;
-                          return (
-                            <button
-                              key={f.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedSavedId(null);
-                                setSelectedFontId(f.id);
-                              }}
-                              className={cn(
-                                "h-14 rounded-xl border bg-muted/20 px-3 flex items-center justify-center",
-                                isSel ? "border-primary ring-2 ring-primary/15 bg-primary/5" : "border-transparent hover:bg-muted/30"
-                              )}
-                            >
-                              <span
-                                style={{
-                                  fontFamily: f.family,
-                                  color: sigColor,
-                                  fontSize: 30,
-                                  lineHeight: 1,
-                                }}
-                              >
-                                {text}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {mode === "draw" && (
-                    <div>
-                      {/* Top toolbar (matches reference UI) */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2 border border-border rounded-xl bg-muted/10">
-                        <Button variant="outline" size="sm" onClick={handleClear}>
-                          Clear
-                        </Button>
-
-                        <div className="flex-1 min-w-0 flex items-center justify-center">
-                          <SignatureThicknessSlider value={sigStrokeWidth} onChange={setSigStrokeWidth} />
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          {presetColors.map((c) => {
-                            const isSelected = c.toLowerCase() === sigColor.toLowerCase();
-                            return (
-                              <button
-                                key={c}
-                                type="button"
-                                onClick={() => setSigColor(c)}
-                                className={cn(
-                                  "h-9 w-9 rounded-full border flex items-center justify-center",
-                                  isSelected ? "border-primary ring-2 ring-primary/25" : "border-border hover:bg-muted/40"
-                                )}
-                                aria-label={`Color ${c}`}
-                                title={c}
-                              >
-                                <span className="h-6 w-6 rounded-full" style={{ backgroundColor: c }} />
-                              </button>
-                            );
-                          })}
-
-                          <button
-                            type="button"
-                            onClick={() => customColorInputRef.current?.click()}
-                            className={cn(
-                              "h-9 w-9 rounded-full border flex items-center justify-center",
-                              isCustomSelected ? "border-primary ring-2 ring-primary/25" : "border-border hover:bg-muted/40"
-                            )}
-                            aria-label="Custom color"
-                            title="Custom color"
-                          >
-                            <span className="h-7 w-7 rounded-full p-[2px]" style={{ backgroundImage: customRainbowBg }} aria-hidden="true">
-                              <span className="block h-full w-full rounded-full p-[2px]" style={{ background: "hsl(var(--background))" }}>
-                                <span
-                                  className="block h-full w-full rounded-full border border-border"
-                                  style={
-                                    isCustomSelected
-                                      ? { backgroundColor: customSwatchColor }
-                                      : { backgroundImage: customRainbowBg }
-                                  }
-                                />
-                              </span>
-                            </span>
-                            <input
-                              ref={customColorInputRef}
-                              type="color"
-                              value={customSwatchColor}
-                              onChange={(e) => setSigColor(e.target.value)}
-                              className="sr-only"
-                              aria-hidden="true"
-                              tabIndex={-1}
-                            />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="signature-pad mt-3 relative overflow-hidden">
-                        <SignatureCanvas
-                          ref={sigCanvas}
-                          canvasProps={{
-                            width: 620,
-                            height: 260,
-                            className: "w-full rounded-lg",
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[40vh] overflow-auto pr-1">
+                    {fontOptions.map((f) => {
+                      const text = (fullName || "Signature").trim() || "Signature";
+                      const isSel = f.id === selectedFontId;
+                      return (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedSavedId(null);
+                            setSelectedFontId(f.id);
                           }}
-                          backgroundColor="white"
-                          penColor={sigColor}
-                          minWidth={Math.max(1, sigStrokeWidth)}
-                          maxWidth={Math.max(1, sigStrokeWidth)}
-                          onEnd={handleEnd}
-                        />
-                        {/* Baseline line */}
-                        <div className="pointer-events-none absolute left-10 right-10 bottom-16 h-px bg-border/60" />
-                      </div>
-                    </div>
-                  )}
-
-                  {mode === "upload" && (
-                    <div>
-                      <input
-                        ref={uploadInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          if (!f) return;
-                          const reader = new FileReader();
-                          reader.onload = () => {
-                            const result = String(reader.result ?? "");
-                            if (result.startsWith("data:")) {
-                              setSelectedSavedId(null);
-                              setUploadDataUrl(result);
-                            }
-                          };
-                          reader.readAsDataURL(f);
-                          e.currentTarget.value = "";
-                        }}
-                      />
-
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm text-muted-foreground">Upload a PNG/JPG signature image.</div>
-                        <Button variant="outline" onClick={() => uploadInputRef.current?.click()}>
-                          Choose file
-                        </Button>
-                      </div>
-
-                      <div className="mt-6 rounded-xl border border-dashed border-border bg-muted/10 h-56 flex items-center justify-center overflow-hidden">
-                        {uploadDataUrl ? (
-                          <img src={uploadDataUrl} alt="Uploaded signature" className="max-h-full max-w-full object-contain" />
-                        ) : (
-                          <div className="text-sm text-muted-foreground">No file selected</div>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                          className={cn(
+                            "min-h-16 rounded-xl border bg-neutral-50 px-3 py-3 flex items-center justify-center overflow-hidden",
+                            isSel ? "border-primary ring-2 ring-primary/15 bg-primary/5" : "border-transparent hover:bg-neutral-100"
+                          )}
+                        >
+                          <span
+                            className="w-full text-center leading-tight break-words"
+                            style={{
+                              fontFamily: f.family,
+                              color: sigColor,
+                              fontSize: isMobile ? 22 : 28,
+                            }}
+                          >
+                            {text}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
+              )}
 
-                {/* Footer */}
-                <div className={cn("mt-6 flex items-center justify-between", isMobile && "pb-20")}>
-                  <label className="flex items-center gap-3 text-sm text-foreground select-none">
-                    <Checkbox checked={saveForFuture} onCheckedChange={(v) => setSaveForFuture(Boolean(v))} />
-                    Save for future use
-                  </label>
-                  <Button
-                    className="h-12 px-8 rounded-xl"
-                    disabled={!canPlace}
-                    onClick={handlePlace}
+              {mode === "draw" && (
+                <div className="relative rounded-xl bg-neutral-100 overflow-hidden">
+                  <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
+                    {presetColors.map((c) => {
+                      const isSelected = c.toLowerCase() === sigColor.toLowerCase();
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setSigColor(c)}
+                          className={cn(
+                            "h-6 w-6 rounded-full border border-white shadow-sm flex items-center justify-center",
+                            isSelected ? "ring-2 ring-offset-1 ring-primary" : ""
+                          )}
+                          style={{ backgroundColor: c }}
+                          aria-label={`Ink ${c}`}
+                        >
+                          {isSelected ? <Check className="h-3 w-3 text-white" /> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <SignatureCanvas
+                    ref={sigCanvas}
+                    canvasProps={{
+                      width: 580,
+                      height: 220,
+                      className: cn("w-full bg-neutral-100", isMobile ? "h-[180px]" : "h-[220px]"),
+                    }}
+                    backgroundColor="rgba(0,0,0,0)"
+                    penColor={sigColor}
+                    minWidth={Math.max(1, sigStrokeWidth)}
+                    maxWidth={Math.max(1, sigStrokeWidth)}
+                          onEnd={() => {
+                            setSelectedSavedId(null);
+                            handleEnd();
+                          }}
+                  />
+                </div>
+              )}
+
+              {mode === "upload" && (
+                <div>
+                  <input
+                    ref={uploadInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const result = String(reader.result ?? "");
+                        if (result.startsWith("data:")) {
+                          setSelectedSavedId(null);
+                          setUploadDataUrl(result);
+                        }
+                      };
+                      reader.readAsDataURL(f);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => uploadInputRef.current?.click()}
+                    className={cn(
+                      "w-full rounded-xl bg-neutral-100 flex flex-col items-center justify-center gap-2 text-neutral-500 hover:bg-neutral-200/70",
+                      isMobile ? "h-[180px]" : "h-[220px]"
+                    )}
                   >
-                    <Check className="w-4 h-4 mr-2" />
-                    Place in PDF
-                  </Button>
+                    {uploadDataUrl ? (
+                      <img src={uploadDataUrl} alt="Uploaded signature" className="max-h-full max-w-full object-contain p-4" />
+                    ) : (
+                      <>
+                        <Upload className="h-6 w-6" />
+                        <span className="text-sm">Click to upload a PNG or JPG</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-              </section>
+              )}
+            </div>
+
+            <div
+              className={cn(
+                "flex gap-3 border-t border-neutral-100",
+                isMobile ? "flex-col px-4 py-3" : "items-center justify-between px-6 py-4"
+              )}
+            >
+              <label className="flex items-center gap-2 text-sm text-neutral-600 select-none">
+                <Checkbox checked={saveForFuture} onCheckedChange={(v) => setSaveForFuture(Boolean(v))} />
+                Save
+              </label>
+              <div className={cn("flex items-center gap-3", isMobile && "w-full")}>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className={cn(
+                    "h-11 rounded-lg border border-primary text-primary text-sm font-medium hover:bg-primary/5",
+                    isMobile ? "flex-1" : "px-5"
+                  )}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!canPlace}
+                  onClick={handlePlace}
+                  className={cn(
+                    "h-11 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-hover disabled:opacity-40",
+                    isMobile ? "flex-1" : "px-5"
+                  )}
+                >
+                  Accept and sign
+                </button>
               </div>
             </div>
           </motion.div>

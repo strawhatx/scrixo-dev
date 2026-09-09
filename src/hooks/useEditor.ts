@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { toast } from "sonner";
-import { supabase} from "@/lib/supabase";
 import { useFileStore } from "@/store/useFileStore";
 import { PDFDocument } from "pdf-lib";
 import {
@@ -13,10 +12,13 @@ import {
   ImageOverlay,
   FieldOverlay,
   TextOverlay,
+  type TextAlign,
+  type TextFontFamily,
 } from "@/lib/pdf-utils";
 import { ToolType } from "@/components/EditorToolbar";
 import type { FieldKind } from "@/types/fields";
 import { checkRateLimit, recordRateLimit } from "@/lib/rate-limiter";
+import { extractAcroFormFields } from "@/lib/acroform";
 
 
 export function useEditor() {
@@ -26,19 +28,20 @@ export function useEditor() {
 
   // Core State
   const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
   // Tool & View State - Initialize from URL param if present
-  const [activeTool, setActiveTool] = useState<ToolType>("sign");
+  const [activeTool, setActiveTool] = useState<ToolType>("select");
   const toolParamProcessed = useRef(false);
+  const acroToastKeyRef = useRef<string | null>(null);
   
   // Read initial tool from URL on mount and activate it
   useEffect(() => {
     if (typeof window !== "undefined" && file && !loading && !toolParamProcessed.current) {
       const urlParams = new URLSearchParams(window.location.search);
       const toolParam = urlParams.get("tool") as ToolType;
-      if (toolParam && ["sign", "draw", "field", "image", "text", "merge", "split", "rearrange", "rotate"].includes(toolParam)) {
+      if (toolParam && toolParam !== "sign" && ["draw", "field", "image", "text", "merge", "split", "rearrange", "rotate"].includes(toolParam)) {
         toolParamProcessed.current = true;
         if (["merge", "split", "rearrange", "rotate"].includes(toolParam)) {
           // For modal tools, open the modal
@@ -47,8 +50,8 @@ export function useEditor() {
           else if (toolParam === "split") setShowSplitModal(true);
           else if (toolParam === "rearrange") setShowRearrangeModal(true);
         } else {
-          // For direct tools, set active tool
           setActiveTool(toolParam);
+          setPlacementArmed(toolParam === "text");
         }
       }
     }
@@ -77,11 +80,16 @@ export function useEditor() {
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [fieldOverlays, setFieldOverlays] = useState<FieldOverlay[]>([]);
   const [fieldKind, setFieldKind] = useState<FieldKind>("text");
+  const [placementArmed, setPlacementArmed] = useState(false);
   const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([]);
   const [pendingText, setPendingText] = useState<{ text: string; fontSize: number; color: string } | null>(null);
   // Text settings
   const [textFontSize, setTextFontSize] = useState<number>(12);
   const [textColor, setTextColor] = useState<string>("#000000");
+  const [textFontFamily, setTextFontFamily] = useState<TextFontFamily>("helvetica");
+  const [textBold, setTextBold] = useState(false);
+  const [textItalic, setTextItalic] = useState(false);
+  const [textAlign, setTextAlign] = useState<TextAlign>("left");
   
   // History State
   const [history, setHistory] = useState<
@@ -113,47 +121,10 @@ export function useEditor() {
       user?.app_metadata?.plan === "pro"
   );
 
-  // Initialize
+  // Guest-only this iteration — no remote document fetch.
   useEffect(() => {
-    const init = async () => {
-      try {
-        const { data: { user: supabaseUser } } = await supabase.auth.getUser();
-        setUser(supabaseUser);
-
-        const docId = params?.id as string;
-        if (docId && docId !== "new") {
-          const { data: doc, error } = await supabase
-            .from('documents')
-            .select('*')
-            .eq('id', docId)
-            .single();
-
-          if (error || !doc) {
-            toast.error("Document not found");
-            router.push("/");
-            return;
-          }
-
-          const { data, error: downloadError } = await supabase.storage
-            .from('pdfs')
-            .download(doc.file_path);
-
-          if (downloadError) throw downloadError;
-
-          const downloadedFile = new File([data], doc.name, { type: 'application/pdf' });
-          setFile(downloadedFile);
-        }
-        // Don't redirect if no file - allow user to upload in editor
-      } catch (err: any) {
-        console.error("Editor init error:", err);
-        toast.error("Failed to load document");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    init();
-  }, [params, supabase, router, setFile]);
+    setUser(null);
+  }, []);
 
   // Track signature count (max 2 for free users)
   const MAX_SIGNATURES_FREE = 2;
@@ -181,6 +152,43 @@ export function useEditor() {
     // Ensure currentPage is always valid.
     setCurrentPage((p) => Math.min(Math.max(1, p), totalPages));
   }, [totalPages, router]);
+
+  // Import existing AcroForm widgets as editable overlays.
+  useEffect(() => {
+    if (!file) {
+      setFieldOverlays([]);
+      acroToastKeyRef.current = null;
+      return;
+    }
+    const fileKey = `${file.name}:${file.size}:${file.lastModified}`;
+    setFieldOverlays([]);
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      extractAcroFormFields(file)
+        .then((fields) => {
+          if (cancelled) return;
+          if (fields.length === 0) return;
+          setFieldOverlays((prev) => {
+            const userPlaced = prev.filter((f) => !f.imported);
+            return [...fields, ...userPlaced];
+          });
+          if (acroToastKeyRef.current !== fileKey) {
+            acroToastKeyRef.current = fileKey;
+            toast.success(
+              fields.length === 1 ? "Found 1 fillable field on this PDF" : `Found ${fields.length} fillable fields on this PDF`
+            );
+          }
+        })
+        .catch(() => {
+          // PDFs without a usable AcroForm are fine.
+        });
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [file]);
 
   // History Actions
   const saveToHistory = useCallback(() => {
@@ -230,74 +238,11 @@ export function useEditor() {
 
   // Document Actions
   const handleSave = useCallback(async () => {
-    if (!file || !user) return;
-    setIsSaving(true);
-    const loadingToast = toast.loading("Saving changes to cloud...");
-
-    try {
-      const pdfBytes = await processPDF(file, signatureOverlays, {
-        pageOrder,
-        pageRotations,
-        drawStrokes,
-        imageOverlays,
-        fieldOverlays,
-        textOverlays,
-      });
-      const blob = new Blob([pdfBytes as any], { type: "application/pdf" });
-      
-      const docId = params?.id as string;
-      let filePath = "";
-
-      if (docId === "new") {
-        filePath = `${user.id}/${Date.now()}_${file.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from("pdfs")
-          .upload(filePath, blob);
-        
-        if (uploadError) throw uploadError;
-
-        const { data: docData, error: docError } = await supabase
-          .from("documents")
-          .insert([{ name: file.name, file_path: filePath, user_id: user.id }])
-          .select()
-          .single();
-
-        if (docError) throw docError;
-        
-        router.replace(`/edit/${docData.id}`);
-      } else {
-        const { data: doc } = await supabase
-          .from("documents")
-          .select("file_path")
-          .eq("id", docId)
-          .single();
-        
-        if (!doc) throw new Error("Document record not found");
-        
-        const { error: uploadError } = await supabase.storage
-          .from("pdfs")
-          .upload(doc.file_path, blob, { upsert: true });
-
-        if (uploadError) throw uploadError;
-
-        await supabase
-          .from("documents")
-          .update({ updated_at: new Date().toISOString() })
-          .eq("id", docId);
-      }
-
-      toast.dismiss(loadingToast);
-      toast.success("All changes saved!");
-    } catch (error: any) {
-      toast.dismiss(loadingToast);
-      toast.error(`Failed to save: ${error.message}`);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [drawStrokes, fieldOverlays, file, imageOverlays, pageOrder, pageRotations, user, signatureOverlays, params, supabase, router]);
+    return;
+  }, []);
 
   const handleDownload = useCallback(async () => {
-    if (!file) return;
+    if (!file) return false;
     try {
       const pdfBytes = await processPDF(file, signatureOverlays, {
         pageOrder,
@@ -306,7 +251,7 @@ export function useEditor() {
         imageOverlays,
         fieldOverlays,
         textOverlays,
-        watermark: isPro ? undefined : { text: "Edited with scrixo" },
+        watermark: undefined,
       });
       const blob = new Blob([pdfBytes as any], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
@@ -315,11 +260,12 @@ export function useEditor() {
       link.download = `edited_${file.name}`;
       link.click();
       URL.revokeObjectURL(url);
-      toast.success("PDF downloaded successfully!");
+      return true;
     } catch (error) {
       toast.error("Failed to download PDF.");
+      return false;
     }
-  }, [drawStrokes, fieldOverlays, file, imageOverlays, isPro, pageOrder, pageRotations, signatureOverlays]);
+  }, [drawStrokes, fieldOverlays, file, imageOverlays, pageOrder, pageRotations, signatureOverlays, textOverlays]);
 
   // Page Operations
   const rotatePage = useCallback(async (delta: number = 90) => {
@@ -569,10 +515,15 @@ export function useEditor() {
     pendingImage,
     fieldOverlays,
     fieldKind,
+    placementArmed,
     textOverlays,
     pendingText,
     textFontSize,
     textColor,
+    textFontFamily,
+    textBold,
+    textItalic,
+    textAlign,
     historyIndex,
     historyLength: history.length,
     signatureCount,
@@ -599,10 +550,15 @@ export function useEditor() {
     setPendingImage,
     setFieldOverlays,
     setFieldKind,
+    setPlacementArmed,
     setTextOverlays,
     setPendingText,
     setTextFontSize,
     setTextColor,
+    setTextFontFamily,
+    setTextBold,
+    setTextItalic,
+    setTextAlign,
     setShowSignaturePad,
     setShowUpgradeModal,
     setShowMergeModal,

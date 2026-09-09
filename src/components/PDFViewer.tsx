@@ -1,22 +1,78 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import * as pdfjs from "pdfjs-dist/build/pdf.min.mjs";
+import { pdfjs, getPdfDocument } from "@/lib/pdfjs-doc";
 import { motion } from "framer-motion";
 import { Check, ChevronDown, Copy, Loader2, Move, Plus, RotateCcw, RotateCw, SlidersHorizontal, Trash2 } from "lucide-react";
 
 import { ToolType } from "@/components/EditorToolbar";
 import type { DrawStrokeOverlay, FieldOverlay, ImageOverlay, SignatureOverlay, TextOverlay } from "@/lib/pdf-utils";
+import type { TextAlign, TextFontFamily } from "@/lib/text-style";
+import { TEXT_FONT_STACK } from "@/lib/text-style";
+import { BRAND_NAVY } from "@/lib/colors";
 import type { FieldKind } from "@/types/fields";
-import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
+import { Calendar } from "./ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { useIsMobile } from "@/hooks/use-mobile";
-
-// Set up PDF.js worker (served from `/public/pdfjs/` via `scripts/copy-pdf-worker.mjs`)
-pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
+import { parseFormDate, toDateDisplay } from "@/lib/form-date";
+import { format } from "date-fns";
 
 const DEFAULT_SIGNATURE_SIZE_PX = { width: 150, height: 50 };
 const FIELD_DRAG_MIME = "application/x-scrixo-field";
+const SELECT_STROKE = BRAND_NAVY;
+
+function DateFieldControl({
+  value,
+  className,
+  onSelectDate,
+  onCommit,
+  onActivate,
+}: {
+  value?: string;
+  className: string;
+  onSelectDate: (iso: string) => void;
+  onCommit?: () => void;
+  onActivate: () => void;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const selected = parseFormDate(value) ?? undefined;
+  const label = toDateDisplay(value);
+  const pick = (day: Date) => {
+    onSelectDate(format(day, "yyyy-MM-dd"));
+    onCommit?.();
+    setOpen(false);
+  };
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={className}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onActivate();
+          }}
+        >
+          {label || "Date"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start" side="bottom">
+        <Calendar mode="single" selected={selected} onSelect={(day) => day && pick(day)} initialFocus />
+        <div className="border-t p-2">
+          <button
+            type="button"
+            className="w-full h-8 rounded-md text-sm font-medium text-primary hover:bg-muted"
+            onClick={() => pick(new Date())}
+          >
+            Today
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 type FieldOverlayWithKind = FieldOverlay & {
   kind?: FieldKind;
   groupName?: string;
@@ -69,12 +125,15 @@ interface PDFViewerProps {
   onPendingImageChange: (dataUrl: string | null) => void;
   onPendingImagePlaced: () => void;
   onImageOverlaysCommit?: () => void;
+  onSignatureFieldClick?: (field: FieldOverlay) => void;
 
   // Fields
   fieldOverlays: FieldOverlayWithKind[];
-  onFieldOverlaysChange: (overlays: FieldOverlayWithKind[]) => void;
+  onFieldOverlaysChange: React.Dispatch<React.SetStateAction<FieldOverlayWithKind[]>>;
   onFieldOverlaysCommit?: () => void;
   fieldKind?: FieldKind;
+  placementArmed?: boolean;
+  onPlacementConsumed?: () => void;
 
   // Text
   textOverlays: TextOverlay[];
@@ -85,9 +144,17 @@ interface PDFViewerProps {
   onTextOverlaysCommit?: () => void;
   textFontSize?: number;
   textColor?: string;
+  textFontFamily?: TextFontFamily;
+  textBold?: boolean;
+  textItalic?: boolean;
+  textAlign?: TextAlign;
+  onActiveTextChange?: (overlay: TextOverlay | null) => void;
 
   // Optional docked panel rendered between the Pages sidebar and the PDF viewport (e.g. Fields panel)
   dockPanel?: React.ReactNode;
+  // Centered over the PDF column only (not the pages sidebar)
+  viewportOverlay?: React.ReactNode;
+  viewportFooter?: React.ReactNode;
 }
 
 function LoadingState() {
@@ -121,55 +188,52 @@ function PagesSidebar({
   onMovePage?: (fromIndex: number, toIndex: number) => void;
 }) {
   return (
-    <aside className="w-42 flex flex-col items-center shrink-0 border-r border-border bg-card/50 backdrop-blur-sm">
-      <div className="px-1.5 py-1.5 border-b border-border">
-        <Button
+    <aside className="h-full w-[12.25rem] shrink-0 flex flex-col border-r border-black/[0.06] bg-muted">
+      <div className="px-3 pt-3 pb-1">
+        <button
           type="button"
           disabled
-          className="w-full h-8 rounded-xl border border-border bg-background/60 text-foreground flex items-center justify-center gap-2 hover:bg-muted disabled:opacity-60 disabled:cursor-not-allowed"
           title="Add page (coming soon)"
+          className="w-full h-9 rounded-lg border border-black/10 bg-white text-foreground shadow-sm flex items-center px-2.5 disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          <Plus className="h-5 w-5" />
-          <span className="hidden font-semibold md:inline">Add page</span>
-          <ChevronDown className="hidden h-4 w-4 opacity-70 md:inline" />
-        </Button>
+          <Plus className="h-4 w-4 shrink-0" />
+          <span className="flex-1 text-center text-sm font-medium">Add page</span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-neutral-500" />
+        </button>
       </div>
 
-      <div ref={pagesListRef} className="h-[calc(100%-60px)] w-28 overflow-auto p-1.5">
+      <div ref={pagesListRef} className="flex-1 min-h-0 overflow-auto px-2 pb-6 pt-2">
         {pageNumbers.map((pageNum, idx) => {
-          const isActive = pageNum === currentPage; 
+          const isActive = pageNum === currentPage;
           const thumb = thumbnailsByPage?.[pageNum];
           return (
-            <div key={pageNum} className="mb-2 flex items-start gap-2">
+            <div key={pageNum} className="flex items-center gap-2 py-2">
+              <span className="w-4 shrink-0 text-center text-[13px] text-neutral-500 tabular-nums">
+                {idx + 1}
+              </span>
               <button
                 type="button"
                 data-page={pageNum}
                 onClick={() => onGoToPage(pageNum)}
                 aria-current={isActive ? "page" : undefined}
                 className={[
-                  "flex-1 text-left rounded-2xl border transition-colors overflow-hidden bg-background/40",
+                  "w-[7rem] shrink-0 rounded-lg overflow-hidden bg-white shadow-sm transition-shadow",
                   isActive
-                    ? "border-primary ring-2 ring-primary/25"
-                    : "border-border hover:bg-muted/70",
+                    ? "border-[3px] border-primary"
+                    : "border-[3px] border-transparent hover:border-black/10",
                 ].join(" ")}
               >
-                <div className="p-1">
-                  <div className="rounded-xl bg-muted/20 border border-border overflow-hidden aspect-[3/4] flex items-center justify-center">
-                    {thumb ? (
-                      <img
-                        src={thumb}
-                        alt={`Page ${pageNum}`}
-                        className="w-full h-full object-contain"
-                        draggable={false}
-                      />
-                    ) : (
-                      <div className="text-[10px] text-muted-foreground">Preview…</div>
-                    )}
-                  </div>
-                </div>
-                <div className="px-2 py-1 flex items-center justify-between">
-                  <span className="text-[10px] font-semibold text-foreground">{idx + 1}</span>
-                  {isActive && <span className="text-[10px] font-bold text-primary">•</span>}
+                <div className="aspect-[3/4] bg-white flex items-center justify-center">
+                  {thumb ? (
+                    <img
+                      src={thumb}
+                      alt={`Page ${pageNum}`}
+                      className="w-full h-full object-contain"
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="text-[10px] text-muted-foreground">Preview…</div>
+                  )}
                 </div>
               </button>
 
@@ -236,10 +300,13 @@ export function PDFViewer(props: PDFViewerProps) {
     onPendingImageChange,
     onPendingImagePlaced,
     onImageOverlaysCommit,
+    onSignatureFieldClick,
     fieldOverlays,
     onFieldOverlaysChange,
     onFieldOverlaysCommit,
     fieldKind,
+    placementArmed = false,
+    onPlacementConsumed,
     textOverlays,
     onTextOverlaysChange,
     pendingText,
@@ -248,7 +315,14 @@ export function PDFViewer(props: PDFViewerProps) {
     onTextOverlaysCommit,
     textFontSize = 12,
     textColor = "#000000",
+    textFontFamily = "helvetica",
+    textBold = false,
+    textItalic = false,
+    textAlign = "left",
+    onActiveTextChange,
     dockPanel,
+    viewportOverlay,
+    viewportFooter,
   } = props;
 
   const isMobile = useIsMobile();
@@ -259,6 +333,21 @@ export function PDFViewer(props: PDFViewerProps) {
   const drawCanvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
   const imageInputRef = useRef<HTMLInputElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
+  const ignoreTextBlurUntilRef = useRef(0);
+  const relocatingTextRef = useRef(false);
+  const textSessionRef = useRef(0);
+  const persistedTextSessionRef = useRef<number | null>(null);
+  const placementArmedRef = useRef(placementArmed);
+  placementArmedRef.current = placementArmed;
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const lastPointerDownRef = useRef({ x: 0, y: 0 });
+  const pinchRef = useRef<{ startDist: number; startZoom: number } | null>(null);
+
+  const consumePlacement = useCallback(() => {
+    placementArmedRef.current = false;
+    onPlacementConsumed?.();
+  }, [onPlacementConsumed]);
   const [inlineTextInput, setInlineTextInput] = useState<{
     page: number;
     x: number;
@@ -267,7 +356,12 @@ export function PDFViewer(props: PDFViewerProps) {
     baseY: number;
     fontSize?: number;
     color?: string;
+    session: number;
   } | null>(null);
+  const inlineTextInputRef = useRef(inlineTextInput);
+  inlineTextInputRef.current = inlineTextInput;
+  const textOverlaysRef = useRef(textOverlays);
+  textOverlaysRef.current = textOverlays;
 
   const renderTasksRef = useRef<Map<number, ReturnType<pdfjs.PDFPageProxy["render"]>>>(new Map());
   const outputScaleRef = useRef<number>(1);
@@ -387,9 +481,9 @@ export function PDFViewer(props: PDFViewerProps) {
 
   const updateFieldOverlay = useCallback(
     (page: number, id: string, patch: Partial<FieldOverlayWithKind>) => {
-      onFieldOverlaysChange(fieldOverlays.map((f) => (f.page === page && f.id === id ? { ...f, ...patch } : f)));
+      onFieldOverlaysChange((prev) => prev.map((f) => (f.page === page && f.id === id ? { ...f, ...patch } : f)));
     },
-    [fieldOverlays, onFieldOverlaysChange]
+    [onFieldOverlaysChange]
   );
 
   const updateTextOverlay = useCallback(
@@ -399,14 +493,30 @@ export function PDFViewer(props: PDFViewerProps) {
     [textOverlays, onTextOverlaysChange]
   );
 
+  const onActiveTextChangeRef = useRef(onActiveTextChange);
+  onActiveTextChangeRef.current = onActiveTextChange;
+  const lastActiveTextKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const selected =
+      activeOverlay?.type === "text"
+        ? textOverlays.find((t) => t.id === activeOverlay.id && t.page === activeOverlay.page) ?? null
+        : null;
+    if (activeOverlay?.type === "text" && !selected) setActiveOverlay(null);
+    const key = selected ? `${selected.page}:${selected.id}` : null;
+    if (lastActiveTextKeyRef.current === key) return;
+    lastActiveTextKeyRef.current = key;
+    onActiveTextChangeRef.current?.(selected);
+  }, [activeOverlay, textOverlays]);
+
   const toggleRadioInGroup = useCallback(
     (page: number, id: string) => {
       const target = fieldOverlays.find((f) => f.page === page && f.id === id);
       if (!target) return;
       const groupName = (target.groupName || target.name || "").trim();
       const nextChecked = !target.checked;
-      onFieldOverlaysChange(
-        fieldOverlays.map((f) => {
+      onFieldOverlaysChange((prev) =>
+        prev.map((f) => {
           if (f.kind !== "radio") return f;
           const fGroup = (f.groupName || f.name || "").trim();
           if (!groupName || fGroup !== groupName) return f;
@@ -428,6 +538,7 @@ export function PDFViewer(props: PDFViewerProps) {
         ...src,
         id: `field-${stamp}`,
         name: `${(src.name || "field").trim() || "field"}_copy`,
+        imported: false,
         x: src.x + 12,
         y: src.y + 12,
       };
@@ -531,8 +642,10 @@ export function PDFViewer(props: PDFViewerProps) {
       };
       onFieldOverlaysChange([...fieldOverlays, newField]);
       onFieldOverlaysCommit?.();
+      setActiveOverlay({ type: "field", id: newField.id, page: pageNum });
+      consumePlacement();
     },
-    [fieldOverlays, getFieldDefaults, onFieldOverlaysChange, onFieldOverlaysCommit, pageLayouts]
+    [consumePlacement, fieldOverlays, getFieldDefaults, onFieldOverlaysChange, onFieldOverlaysCommit, pageLayouts]
   );
 
   // One-time normalization: convert any existing overlays that were stored in zoom-scaled CSS px
@@ -553,6 +666,7 @@ export function PDFViewer(props: PDFViewerProps) {
       return list.map((o) => {
         const s = scaleByPage.get(o.page) ?? 1;
         if (!s || s === 1) return o;
+        if ("imported" in o && (o as { imported?: boolean }).imported) return o;
         // Heuristic: if values look "too large" for base units, divide by scale.
         // We only run once per file load to avoid double-scaling.
         return {
@@ -600,23 +714,29 @@ export function PDFViewer(props: PDFViewerProps) {
   // -----------------------------
   useEffect(() => {
     let cancelled = false;
-    let loadingTask: pdfjs.PDFDocumentLoadingTask | null = null;
+    let task: { destroy?: () => Promise<void> } | null = null;
 
     const load = async () => {
       setLoading(true);
       try {
-        const arrayBuffer = await file.arrayBuffer();
+        const data = new Uint8Array(await file.arrayBuffer());
         if (cancelled) return;
-        loadingTask = pdfjs.getDocument({ data: arrayBuffer });
-        const pdf = await loadingTask.promise;
-        if (cancelled) return;
-        setPdfDoc(pdf);
-        // Reset cached text content whenever a new PDF is loaded.
+        const opened = await getPdfDocument(data);
+        if (cancelled) {
+          try {
+            await opened.pdf.destroy();
+          } catch {
+            // ignore
+          }
+          return;
+        }
+        task = opened.task;
+        setPdfDoc(opened.pdf);
         setTextItemsByPage({});
         loadedTextPagesRef.current = new Set();
         overlaysNormalizedRef.current = false;
         autoFitDoneRef.current = false;
-        onPageCountChange(pdf.numPages);
+        onPageCountChange(opened.pdf.numPages);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -634,7 +754,7 @@ export function PDFViewer(props: PDFViewerProps) {
     return () => {
       cancelled = true;
       try {
-        loadingTask?.destroy();
+        void task?.destroy?.();
       } catch {
         // ignore
       }
@@ -642,29 +762,14 @@ export function PDFViewer(props: PDFViewerProps) {
   }, [file, onPageCountChange]);
 
   // -----------------------------
-  // Render pages (PDF canvas)
+  // Page layouts (sizes) — commit to DOM before painting canvases
   // -----------------------------
   useEffect(() => {
     if (!pdfDoc) return;
     let cancelled = false;
 
-    const renderAllPages = async () => {
+    const measure = async () => {
       const scale = zoom / 100;
-      const outputScale =
-        typeof window !== "undefined" && window.devicePixelRatio ? window.devicePixelRatio : 1;
-      outputScaleRef.current = outputScale;
-
-      // Cancel any in-flight renders before starting a new pass.
-      for (const task of renderTasksRef.current.values()) {
-        try {
-          task.cancel?.();
-        } catch {
-          // ignore
-        }
-      }
-      renderTasksRef.current.clear();
-
-      // Layouts for each original page number (canvas size needs to be stable)
       const layouts: Array<{
         page: number;
         width: number;
@@ -685,40 +790,70 @@ export function PDFViewer(props: PDFViewerProps) {
           height: viewport.height,
           baseWidth: baseViewport.width,
           baseHeight: baseViewport.height,
-          viewportTransform: viewport.transform as any,
+          viewportTransform: viewport.transform as [number, number, number, number, number, number],
         });
       }
       if (cancelled) return;
       setPageLayouts(layouts);
+    };
 
-      // Auto-fit to width on initial load (only once per PDF load)
-      if (!autoFitDoneRef.current && onZoomChange && layouts.length > 0 && scrollRef.current) {
-        const firstPageLayout = layouts[0];
-        const containerWidth = scrollRef.current.clientWidth;
-        const padding = 48; // 24px padding on each side (p-6)
-        const availableWidth = Math.max(100, containerWidth - padding); // Ensure minimum width
-        if (firstPageLayout.baseWidth > 0 && availableWidth > 0) {
-          const fitZoom = Math.floor((availableWidth / firstPageLayout.baseWidth) * 100);
-          const clampedZoom = Math.max(50, Math.min(200, fitZoom)); // Clamp between 50% and 200%
-          autoFitDoneRef.current = true;
-          // Use setTimeout to avoid state updates during render
-          setTimeout(() => onZoomChange(clampedZoom), 0);
+    void measure();
+    return () => {
+      cancelled = true;
+    };
+  }, [pdfDoc, pageRotations, rotation, zoom]);
+
+  // Auto-fit once the scroll container actually has a width (DevTools resize used to unstick this).
+  useEffect(() => {
+    if (!onZoomChange || pageLayouts.length === 0) return;
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const tryFit = () => {
+      if (autoFitDoneRef.current) return;
+      const first = pageLayouts[0];
+      const availableWidth = Math.max(0, el.clientWidth - 48);
+      if (first.baseWidth <= 0 || availableWidth < 80) return;
+      const fitZoom = Math.floor((availableWidth / first.baseWidth) * 100);
+      autoFitDoneRef.current = true;
+      onZoomChange(Math.max(50, Math.min(200, fitZoom)));
+    };
+
+    tryFit();
+    const ro = new ResizeObserver(tryFit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [onZoomChange, pageLayouts]);
+
+  // Paint canvases after they exist in the DOM
+  useEffect(() => {
+    if (!pdfDoc || pageLayouts.length === 0) return;
+    let cancelled = false;
+
+    const paint = async () => {
+      const outputScale =
+        typeof window !== "undefined" && window.devicePixelRatio ? window.devicePixelRatio : 1;
+      outputScaleRef.current = outputScale;
+
+      for (const task of renderTasksRef.current.values()) {
+        try {
+          task.cancel?.();
+        } catch {
+          // ignore
         }
       }
+      renderTasksRef.current.clear();
 
-      // Wait a frame for canvases to mount.
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      if (cancelled) return;
-
-      // Render sequentially so pages load in order.
-      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+      for (const layout of pageLayouts) {
+        if (cancelled) return;
+        const pageNum = layout.page;
         const canvas = pageCanvasRefs.current.get(pageNum);
         if (!canvas) continue;
         const page = await pdfDoc.getPage(pageNum);
         if (cancelled) return;
 
         const pageRot = (rotation + (pageRotations?.[pageNum] ?? 0)) % 360;
-        const viewport = page.getViewport({ scale, rotation: pageRot });
+        const viewport = page.getViewport({ scale: zoom / 100, rotation: pageRot });
         const ctx = canvas.getContext("2d");
         if (!ctx) continue;
 
@@ -734,13 +869,13 @@ export function PDFViewer(props: PDFViewerProps) {
           canvasContext: ctx,
           viewport,
           transform: outputScale !== 1 ? ([outputScale, 0, 0, outputScale, 0, 0] as const) : undefined,
+          annotationMode: (pdfjs as { AnnotationMode?: { DISABLE?: number } }).AnnotationMode?.DISABLE ?? 0,
         };
 
-        const task = page.render(renderContext as any);
+        const task = page.render(renderContext as unknown as Parameters<typeof page.render>[0]);
         renderTasksRef.current.set(pageNum, task);
         try {
           await task.promise;
-          // Generate a lightweight thumbnail for the Pages sidebar.
           try {
             const src = canvas;
             const maxW = 140;
@@ -769,7 +904,7 @@ export function PDFViewer(props: PDFViewerProps) {
       }
     };
 
-    renderAllPages();
+    void paint();
     return () => {
       cancelled = true;
       for (const task of renderTasksRef.current.values()) {
@@ -781,7 +916,7 @@ export function PDFViewer(props: PDFViewerProps) {
       }
       renderTasksRef.current.clear();
     };
-  }, [pdfDoc, pageRotations, rotation, zoom]);
+  }, [pageLayouts, pageRotations, pdfDoc, rotation, zoom]);
 
   // Lazily load text content for the "Select" tool (so it doesn't slow normal editing).
   useEffect(() => {
@@ -1086,6 +1221,175 @@ export function PDFViewer(props: PDFViewerProps) {
     if (active !== currentPage) onPageChange(active);
   }, [currentPage, onPageChange, pageNumbers]);
 
+  const [pinchPreview, setPinchPreview] = useState<number | null>(null);
+  const pinchScaleRef = useRef(1);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !onZoomChange) return;
+
+    const clampZoom = (value: number) => Math.round(Math.max(50, Math.min(200, value)));
+    const touchDistance = (event: TouchEvent) => {
+      const a = event.touches[0];
+      const b = event.touches[1];
+      return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    };
+
+    let wheelFrame = 0;
+    let pendingWheelZoom: number | null = null;
+
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      const factor = Math.exp(-event.deltaY * 0.01);
+      pendingWheelZoom = clampZoom((pendingWheelZoom ?? zoomRef.current) * factor);
+      if (wheelFrame) return;
+      wheelFrame = requestAnimationFrame(() => {
+        wheelFrame = 0;
+        if (pendingWheelZoom == null) return;
+        onZoomChange(pendingWheelZoom);
+        pendingWheelZoom = null;
+      });
+    };
+
+    const onTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 2) return;
+      pinchRef.current = { startDist: touchDistance(event), startZoom: zoomRef.current };
+      pinchScaleRef.current = 1;
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      if (event.touches.length !== 2 || !pinchRef.current || pinchRef.current.startDist < 8) return;
+      event.preventDefault();
+      const scale = touchDistance(event) / pinchRef.current.startDist;
+      pinchScaleRef.current = scale;
+      setPinchPreview(scale);
+    };
+
+    const endPinch = () => {
+      if (!pinchRef.current) return;
+      const next = clampZoom(pinchRef.current.startZoom * pinchScaleRef.current);
+      pinchRef.current = null;
+      pinchScaleRef.current = 1;
+      setPinchPreview(null);
+      if (next !== zoomRef.current) onZoomChange(next);
+    };
+
+    const onTouchEnd = (event: TouchEvent) => {
+      if (event.touches.length < 2) endPinch();
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchcancel", onTouchEnd);
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+      if (wheelFrame) cancelAnimationFrame(wheelFrame);
+    };
+  }, [onZoomChange]);
+
+  const persistInlineDraft = useCallback(
+    (text?: string) => {
+      const loc = inlineTextInputRef.current;
+      const draft = (text ?? textInputRef.current?.value ?? "").trim();
+      if (!loc || !draft) return false;
+      if (persistedTextSessionRef.current === loc.session) return false;
+      persistedTextSessionRef.current = loc.session;
+      const newText: TextOverlay = {
+        id: `text-${Date.now()}`,
+        text: draft,
+        x: loc.baseX,
+        y: loc.baseY,
+        fontSize: textFontSize,
+        color: textColor,
+        fontFamily: textFontFamily,
+        bold: textBold,
+        italic: textItalic,
+        align: textAlign,
+        page: loc.page,
+        rotation: 0,
+      };
+      onTextOverlaysChange([...textOverlaysRef.current, newText]);
+      onTextOverlaysCommit?.();
+      return true;
+    },
+    [onTextOverlaysChange, onTextOverlaysCommit, textAlign, textBold, textColor, textFontFamily, textFontSize, textItalic]
+  );
+
+  const beginInlineTextAt = useCallback(
+    (pageNum: number, x: number, y: number) => {
+      const layout = pageLayouts.find((l) => l.page === pageNum);
+      if (!layout) return;
+      const scale = layout.baseWidth ? layout.width / layout.baseWidth : 1;
+      const bx = x / scale;
+      const by = y / scale;
+
+      const textItems = textItemsByPage[pageNum] ?? [];
+      let detectedFontSize = textFontSize;
+      let detectedColor = textColor;
+
+      if (textItems.length > 0) {
+        let closestItem: any = null;
+        let minDist = Infinity;
+
+        for (const item of textItems) {
+          const transform = (item as any).transform ?? [1, 0, 0, 1, 0, 0];
+          const tx = multiplyTransform(layout.viewportTransform, transform);
+          const itemX = tx[4];
+          const itemY = tx[5];
+          const dist = Math.sqrt(Math.pow(x - itemX, 2) + Math.pow(y - itemY, 2));
+
+          if (dist < minDist && dist < 50) {
+            minDist = dist;
+            closestItem = item;
+          }
+        }
+
+        if (closestItem) {
+          const transform = (closestItem as any).transform ?? [1, 0, 0, 1, 0, 0];
+          const tx = multiplyTransform(layout.viewportTransform, transform);
+          const fontHeight = Math.max(1, Math.hypot(tx[2], tx[3]));
+          detectedFontSize = Math.round(fontHeight / scale);
+
+          if ((closestItem as any).color) {
+            const color = (closestItem as any).color;
+            if (Array.isArray(color) && color.length >= 3) {
+              const r = Math.round(color[0] * 255);
+              const g = Math.round(color[1] * 255);
+              const b = Math.round(color[2] * 255);
+              detectedColor = `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+            }
+          }
+        }
+      }
+
+      relocatingTextRef.current = true;
+      ignoreTextBlurUntilRef.current = Date.now() + 400;
+      textSessionRef.current += 1;
+      setInlineTextInput({
+        page: pageNum,
+        x,
+        y,
+        baseX: bx,
+        baseY: by,
+        fontSize: detectedFontSize,
+        color: detectedColor,
+        session: textSessionRef.current,
+      });
+      setTimeout(() => {
+        relocatingTextRef.current = false;
+        textInputRef.current?.focus();
+      }, 10);
+    },
+    [multiplyTransform, pageLayouts, textColor, textFontSize, textItemsByPage]
+  );
+
   // -----------------------------
   // Click to place sign / image / field
   // -----------------------------
@@ -1152,76 +1456,22 @@ export function PDFViewer(props: PDFViewerProps) {
         return;
       }
 
-      // Mobile: Click-based field placement (instead of drag and drop)
-      if (activeTool === "field" && fieldKind && isMobile) {
+      if (activeTool === "field" && fieldKind) {
+        if (!placementArmedRef.current) return;
         placeFieldAt(pageNum, x, y, fieldKind);
         return;
       }
 
       if (activeTool === "text") {
-        // Create inline text input at click position
-        const layout = pageLayouts.find((l) => l.page === pageNum);
-        if (!layout) return;
-        const scale = layout.baseWidth ? layout.width / layout.baseWidth : 1;
-        const bx = x / scale;
-        const by = y / scale;
-        
-        // Try to detect font from nearby text items
-        const textItems = textItemsByPage[pageNum] ?? [];
-        let detectedFontSize = textFontSize;
-        let detectedColor = textColor;
-        
-        if (textItems.length > 0) {
-          // Find the closest text item to the click position
-          let closestItem: any = null;
-          let minDist = Infinity;
-          
-          for (const item of textItems) {
-            const transform = (item as any).transform ?? [1, 0, 0, 1, 0, 0];
-            const tx = multiplyTransform(layout.viewportTransform, transform);
-            const itemX = tx[4];
-            const itemY = tx[5];
-            const dist = Math.sqrt(Math.pow(x - itemX, 2) + Math.pow(y - itemY, 2));
-            
-            if (dist < minDist && dist < 50) { // Within 50px
-              minDist = dist;
-              closestItem = item;
-            }
-          }
-          
-          if (closestItem) {
-            // Extract font size from transform
-            const transform = (closestItem as any).transform ?? [1, 0, 0, 1, 0, 0];
-            const tx = multiplyTransform(layout.viewportTransform, transform);
-            const fontHeight = Math.max(1, Math.hypot(tx[2], tx[3]));
-            detectedFontSize = Math.round(fontHeight / scale);
-            
-            // Try to get color from text item (if available)
-            if ((closestItem as any).color) {
-              const color = (closestItem as any).color;
-              if (Array.isArray(color) && color.length >= 3) {
-                const r = Math.round(color[0] * 255);
-                const g = Math.round(color[1] * 255);
-                const b = Math.round(color[2] * 255);
-                detectedColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-              }
-            }
-          }
+        if (inlineTextInputRef.current) {
+          persistInlineDraft();
+          setInlineTextInput(null);
+          consumePlacement();
+          return;
         }
-        
-        setInlineTextInput({
-          page: pageNum,
-          x,
-          y,
-          baseX: bx,
-          baseY: by,
-          fontSize: detectedFontSize,
-          color: detectedColor,
-        });
-        // Focus the input after a brief delay to ensure it's rendered
-        setTimeout(() => {
-          textInputRef.current?.focus();
-        }, 10);
+        if (!placementArmedRef.current) return;
+        beginInlineTextAt(pageNum, x, y);
+        consumePlacement();
         return;
       }
     },
@@ -1246,6 +1496,9 @@ export function PDFViewer(props: PDFViewerProps) {
       pendingText,
       placeFieldAt,
       signatureOverlays,
+      persistInlineDraft,
+      beginInlineTextAt,
+      consumePlacement,
       textColor,
       textFontSize,
       textItemsByPage,
@@ -1255,32 +1508,19 @@ export function PDFViewer(props: PDFViewerProps) {
 
   // Handle inline text input submission
   const handleInlineTextSubmit = useCallback(
-    (text: string, fontSize?: number, color?: string) => {
-      if (!inlineTextInput || !text.trim()) {
-        setInlineTextInput(null);
-        return;
-      }
-
-      // Use detected font or current settings
-      const finalFontSize = fontSize ?? textFontSize;
-      const finalColor = color ?? textColor;
-
-      const newText: TextOverlay = {
-        id: `text-${Date.now()}`,
-        text: text.trim(),
-        x: inlineTextInput.baseX,
-        y: inlineTextInput.baseY,
-        fontSize: finalFontSize,
-        color: finalColor,
-        page: inlineTextInput.page,
-        rotation: 0,
-      };
-      onTextOverlaysChange([...textOverlays, newText]);
-      onTextOverlaysCommit?.();
+    (text: string) => {
+      persistInlineDraft(text);
       setInlineTextInput(null);
+      consumePlacement();
     },
-    [inlineTextInput, onTextOverlaysChange, onTextOverlaysCommit, textColor, textFontSize, textOverlays]
+    [consumePlacement, persistInlineDraft]
   );
+
+  useEffect(() => {
+    if (activeTool === "text") return;
+    persistInlineDraft();
+    setInlineTextInput(null);
+  }, [activeTool, persistInlineDraft]);
 
   const tryParseDraggedFieldKind = useCallback((e: React.DragEvent) => {
     const isKind = (k: any): k is FieldKind =>
@@ -1493,7 +1733,7 @@ export function PDFViewer(props: PDFViewerProps) {
       />
 
       {/* Desktop: Pages Sidebar */}
-      <div className="hidden md:block">
+      <div className="hidden md:flex h-full shrink-0">
         <PagesSidebar
           pageNumbers={pageNumbers}
           currentPage={currentPage}
@@ -1507,9 +1747,20 @@ export function PDFViewer(props: PDFViewerProps) {
 
       {dockPanel}
 
+      <div className="relative flex-1 min-h-0 min-w-0">
+        {viewportOverlay ? (
+          <div className="pointer-events-none absolute inset-x-0 top-4 z-[70] flex justify-center">
+            <div className="pointer-events-auto">{viewportOverlay}</div>
+          </div>
+        ) : null}
+        {viewportFooter ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-4 z-[70] flex justify-center px-3 pb-[env(safe-area-inset-bottom)]">
+            <div className="pointer-events-auto">{viewportFooter}</div>
+          </div>
+        ) : null}
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 w-full overflow-auto outline-none"
+        className="h-full w-full overflow-auto outline-none [touch-action:pan-x_pan-y]"
         tabIndex={0}
         onScroll={handleScroll}
         onPointerDownCapture={(e) => {
@@ -1520,10 +1771,19 @@ export function PDFViewer(props: PDFViewerProps) {
           if (t?.closest?.('input[type="text"]')) return; // Don't clear if clicking on text input
           setActiveOverlay(null);
           setFieldOptionsOpen(null);
+          persistInlineDraft();
           setInlineTextInput(null);
+          consumePlacement();
         }}
       >
-        <div className="min-w-full flex flex-col items-center gap-10 p-6 pb-28">
+        <div
+          className="min-w-full flex flex-col items-center gap-10 p-6 pb-28"
+          style={
+            pinchPreview != null
+              ? { transform: `scale(${pinchPreview})`, transformOrigin: "top center" }
+              : undefined
+          }
+        >
           {pageLayouts.length === 0 ? (
             <div className="w-full flex items-center justify-center py-16 text-muted-foreground gap-3">
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -1552,9 +1812,12 @@ export function PDFViewer(props: PDFViewerProps) {
                         if (el) pageContainerRefs.current.set(pageNum, el);
                         else pageContainerRefs.current.delete(pageNum);
                       }}
-                      className={["relative shadow-lg bg-card", isActive ? "ring-2 ring-primary/30" : ""].join(
-                        " "
-                      )}
+                      className={[
+                        "relative shadow-lg bg-card",
+                        isActive ? "ring-2 ring-primary/30" : "",
+                        activeTool === "field" && placementArmed ? "cursor-crosshair" : "",
+                        activeTool === "text" && placementArmed ? "cursor-text" : "",
+                      ].join(" ")}
                       style={{ width: layout.width, height: layout.height }}
                       onDragOver={(e) => {
                         // Some browsers don't allow reading drag data during dragover.
@@ -1569,6 +1832,7 @@ export function PDFViewer(props: PDFViewerProps) {
                       onDrop={(e) => {
                         const kind = tryParseDraggedFieldKind(e);
                         if (!kind) return;
+                        if (!placementArmedRef.current) return;
                         e.preventDefault();
                         e.stopPropagation();
                         const container = pageContainerRefs.current.get(pageNum);
@@ -1582,16 +1846,19 @@ export function PDFViewer(props: PDFViewerProps) {
                         // Click anywhere on the page that isn't an overlay should clear selection.
                         if (!canInteractOverlays) return;
                         const t = e.target as HTMLElement | null;
-                        if (t?.closest?.('[data-overlay-root="true"]')) return;
                         if (t?.closest?.('input[type="text"]')) return; // Don't clear if clicking on text input
+                        if (t?.closest?.('[data-overlay-root="true"]')) {
+                          persistInlineDraft();
+                          setInlineTextInput(null);
+                          consumePlacement();
+                          return;
+                        }
                         setActiveOverlay(null);
                         setFieldOptionsOpen(null);
-                        // Only clear inline text input if clicking outside of it
-                        if (inlineTextInput && inlineTextInput.page === pageNum) {
-                          const inputEl = textInputRef.current;
-                          if (inputEl && !inputEl.contains(t)) {
-                            setInlineTextInput(null);
-                          }
+                        if (inlineTextInputRef.current) {
+                          persistInlineDraft();
+                          setInlineTextInput(null);
+                          consumePlacement();
                         }
                       }}
                       onClick={(e) => handlePageClick(pageNum, e)}
@@ -1697,7 +1964,7 @@ export function PDFViewer(props: PDFViewerProps) {
 
                             {isSelected && (
                               <div className="absolute inset-0">
-                                <div className="absolute inset-0 border-2 border-primary/80 rounded-sm" />
+                                <div className="absolute inset-0 border-[1.5px] border-primary" />
                                 {/* Toolbar */}
                                 <div className="absolute -top-12 left-0 right-0 flex justify-center pointer-events-none">
                                   <div className="pointer-events-auto flex items-center gap-3 px-3 py-2 rounded-xl border border-border bg-card/95 shadow-lg">
@@ -1788,7 +2055,7 @@ export function PDFViewer(props: PDFViewerProps) {
                                     <div
                                       key={h}
                                       style={pos[h]}
-                                      className="absolute h-3 w-3 rounded-full bg-background border border-primary shadow-sm"
+                                      className="absolute h-3 w-3 rounded-full bg-white border border-primary shadow-sm"
                                       onPointerDown={(e) =>
                                         startOverlayResize(
                                           "sig",
@@ -1867,7 +2134,7 @@ export function PDFViewer(props: PDFViewerProps) {
 
                             {isSelected && (
                               <div className="absolute inset-0">
-                                <div className="absolute inset-0 border-2 border-primary/80 rounded-sm" />
+                                <div className="absolute inset-0 border-[1.5px] border-primary" />
                                 <div className="absolute -top-12 left-0 right-0 flex justify-center pointer-events-none">
                                   <div className="pointer-events-auto flex items-center gap-3 px-3 py-2 rounded-xl border border-border bg-card/95 shadow-lg">
                                     <input
@@ -1956,7 +2223,7 @@ export function PDFViewer(props: PDFViewerProps) {
                                     <div
                                       key={h}
                                       style={pos[h]}
-                                      className="absolute h-3 w-3 rounded-full bg-background border border-primary shadow-sm"
+                                      className="absolute h-3 w-3 rounded-full bg-white border border-primary shadow-sm"
                                       onPointerDown={(e) =>
                                         startOverlayResize(
                                           "img",
@@ -1989,19 +2256,29 @@ export function PDFViewer(props: PDFViewerProps) {
                         const kind = f.kind ?? "text";
                         const isDate = kind === "date";
                         const isText = kind === "text";
-                        const isInput = isText || isDate;
+                        const isInput = isText;
                         const isMultiline = Boolean(f.multiline) && isText;
                         const isCheckbox = kind === "checkbox";
                         const isRadio = kind === "radio";
                         const isSelect = kind === "select";
                         const isList = kind === "list";
                         const hasOptionsMenu = isSelect || isList || isText || isRadio;
-                        const tag = kind === "signature" ? "sign" : kind;
+                        const isSignature = kind === "signature";
+                        const isSigned = isSignature && typeof f.value === "string" && f.value.startsWith("data:");
                         const isSelected =
                           canInteractOverlays &&
                           activeOverlay?.type === "field" &&
                           activeOverlay.id === f.id &&
                           activeOverlay.page === pageNum;
+                        const fieldIndex = entry.fields.findIndex((x) => x.id === f.id) + 1;
+                        const fieldFill =
+                          isSignature && f.imported && !isSigned
+                            ? "bg-field/20"
+                            : f.imported
+                              ? "bg-field"
+                              : isSelected
+                                ? "bg-field/80"
+                                : "bg-field/45";
                         return (
                           <div
                             key={f.id}
@@ -2017,6 +2294,7 @@ export function PDFViewer(props: PDFViewerProps) {
                               touchAction: "none",
                             }}
                             onPointerDown={(e) => {
+                              lastPointerDownRef.current = { x: e.clientX, y: e.clientY };
                               // In Select tool, fields should be fillable but not movable.
                               if (!canInteractOverlays) return;
                               if (!canEditFieldStructure) return;
@@ -2029,18 +2307,39 @@ export function PDFViewer(props: PDFViewerProps) {
                               if (!canInteractOverlays) return;
                               e.stopPropagation();
                               setActiveOverlay({ type: "field", id: f.id, page: pageNum });
+                              if (isSignature) {
+                                const dx = e.clientX - lastPointerDownRef.current.x;
+                                const dy = e.clientY - lastPointerDownRef.current.y;
+                                if (Math.hypot(dx, dy) < 8) onSignatureFieldClick?.(f);
+                              }
                             }}
                           >
-                            {isInput ? (
+                            {f.imported && !(isSignature && !isSigned) ? (
+                              <div className="absolute inset-0 bg-white" aria-hidden />
+                            ) : null}
+                            {isDate ? (
+                              <DateFieldControl
+                                value={f.value}
+                                className={[
+                                  "absolute inset-0 w-full h-full rounded-none border-0 px-2 text-left text-sm text-foreground",
+                                  fieldFill,
+                                  "cursor-pointer",
+                                  !toDateDisplay(f.value) ? "text-muted-foreground" : "",
+                                ].join(" ")}
+                                onActivate={() => setActiveOverlay({ type: "field", id: f.id, page: pageNum })}
+                                onSelectDate={(iso) => updateFieldOverlay(pageNum, f.id, { value: iso })}
+                                onCommit={onFieldOverlaysCommit}
+                              />
+                            ) : isInput ? (
                               isMultiline ? (
                                 <textarea
                                   value={f.value ?? ""}
                                   placeholder=""
                                   readOnly={canEditFieldStructure ? !isSelected : false}
                                   className={[
-                                    "absolute inset-0 w-full h-full resize-none rounded-md border bg-white/70 px-3 py-2 text-sm text-foreground",
+                                    "absolute inset-0 w-full h-full resize-none rounded-none border-0 px-2 py-1 text-sm text-foreground",
                                     "focus:outline-none",
-                                    isSelected ? "border-primary/80 ring-2 ring-primary/20" : "border-primary/30",
+                                    fieldFill,
                                     !isSelected ? "cursor-pointer" : "cursor-text",
                                   ].join(" ")}
                                   onPointerDown={(e) => e.stopPropagation()}
@@ -2052,13 +2351,13 @@ export function PDFViewer(props: PDFViewerProps) {
                               ) : (
                                 <input
                                   value={f.value ?? ""}
-                                  type={isDate ? "date" : "text"}
-                                  placeholder={isDate ? "" : ""}
+                                  type="text"
+                                  placeholder=""
                                   readOnly={canEditFieldStructure ? !isSelected : false}
                                   className={[
-                                    "absolute inset-0 w-full h-full rounded-md border bg-white/70 px-3 text-sm text-foreground",
+                                    "absolute inset-0 w-full h-full rounded-none border-0 px-2 text-sm text-foreground",
                                     "focus:outline-none",
-                                    isSelected ? "border-primary/80 ring-2 ring-primary/20" : "border-primary/30",
+                                    fieldFill,
                                     !isSelected ? "cursor-pointer" : "cursor-text",
                                   ].join(" ")}
                                   onPointerDown={(e) => e.stopPropagation()}
@@ -2074,7 +2373,7 @@ export function PDFViewer(props: PDFViewerProps) {
                                 className={[
                                   "absolute inset-0 w-full h-full rounded-md border bg-white/70 px-3 text-sm text-foreground",
                                   "focus:outline-none",
-                                  isSelected ? "border-primary/80 ring-2 ring-primary/20" : "border-primary/30",
+                                  isSelected ? "border-primary ring-2 ring-primary/20" : "border-primary/35",
                                   !isSelected ? "cursor-pointer" : "cursor-default",
                                 ].join(" ")}
                                 onPointerDown={(e) => e.stopPropagation()}
@@ -2112,7 +2411,7 @@ export function PDFViewer(props: PDFViewerProps) {
                                 className={[
                                   "absolute inset-0 w-full h-full rounded-md border bg-white/70 px-2 py-2 text-sm text-foreground",
                                   "focus:outline-none",
-                                  isSelected ? "border-primary/80 ring-2 ring-primary/20" : "border-primary/30",
+                                  isSelected ? "border-primary ring-2 ring-primary/20" : "border-primary/35",
                                   !isSelected ? "cursor-pointer" : "cursor-default",
                                 ].join(" ")}
                                 onPointerDown={(e) => e.stopPropagation()}
@@ -2142,7 +2441,7 @@ export function PDFViewer(props: PDFViewerProps) {
                                 type="button"
                                 className={[
                                   "absolute inset-0 w-full h-full rounded-none border bg-white/60 flex items-center justify-center",
-                                  isSelected ? "border-primary/80 ring-2 ring-primary/20" : "border-primary/40",
+                                  isSelected ? "border-primary ring-2 ring-primary/20" : "border-primary/40",
                                 ].join(" ")}
                                 onPointerDown={(e) => e.stopPropagation()}
                                 onClick={(e) => {
@@ -2162,7 +2461,7 @@ export function PDFViewer(props: PDFViewerProps) {
                                 type="button"
                                 className={[
                                   "absolute inset-0 w-full h-full rounded-full border bg-white/60 flex items-center justify-center",
-                                  isSelected ? "border-primary/80 ring-2 ring-primary/20" : "border-primary/40",
+                                  isSelected ? "border-primary ring-2 ring-primary/20" : "border-primary/40",
                                 ].join(" ")}
                                 onPointerDown={(e) => e.stopPropagation()}
                                 onClick={(e) => {
@@ -2176,15 +2475,26 @@ export function PDFViewer(props: PDFViewerProps) {
                               >
                                 {f.checked ? <div className="h-2.5 w-2.5 rounded-full bg-primary" /> : null}
                               </button>
-                            ) : (
+                            ) : isSignature ? (
                               <>
-                                <div
-                                  className={[
-                                    "absolute inset-0 rounded-md border bg-blue-100/40",
-                                    isSelected ? "border-primary/80 ring-2 ring-primary/20" : "border-primary/30",
-                                  ].join(" ")}
-                                />
+                                {isSigned ? (
+                                  <img
+                                    src={f.value}
+                                    alt="Signature"
+                                    className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+                                    draggable={false}
+                                  />
+                                ) : (
+                                  <div className={["absolute inset-0 rounded-none", fieldFill].join(" ")} />
+                                )}
+                                {isSigned ? null : (
+                                  <span className="absolute left-1.5 top-1 z-20 rounded px-1 py-px text-[9px] font-bold tracking-[0.14em] text-primary bg-white/90 pointer-events-none">
+                                    SIGN
+                                  </span>
+                                )}
                               </>
+                            ) : (
+                              <div className={["absolute inset-0 rounded-none", fieldFill].join(" ")} />
                             )}
 
                             {isSelected && (
@@ -2195,90 +2505,6 @@ export function PDFViewer(props: PDFViewerProps) {
                                   if (!canEditFieldStructure) return null;
                                   return (
                                     <>
-                                {/* Toolbar: Copy + Delete */}
-                                <div className="absolute -top-12 left-0 right-0 flex justify-center pointer-events-none">
-                                  <div className="pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card/95 shadow-lg">
-                                    <button
-                                      type="button"
-                                      className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center cursor-move"
-                                      onPointerDown={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        startOverlayDrag("field", pageNum, f.id, e as any, { x: left, y: top, width, height });
-                                      }}
-                                      aria-label="Move field"
-                                      title="Move"
-                                    >
-                                      <Move className="h-5 w-5" />
-                                    </button>
-
-                                    <div className="h-6 w-px bg-border" />
-
-                                    {hasOptionsMenu && (
-                                      <>
-                                        <button
-                                          type="button"
-                                          className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center"
-                                          onPointerDown={(e) => {
-                                            // Prevent the underlying field overlay from interpreting this as a drag start.
-                                            e.stopPropagation();
-                                          }}
-                                          onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            setFieldOptionsOpen((prev) => {
-                                              const next = { id: f.id, page: pageNum };
-                                              if (prev?.id === next.id && prev?.page === next.page) return null;
-                                              return next;
-                                            });
-                                          }}
-                                          aria-label="Field options"
-                                          title="Options"
-                                        >
-                                          <SlidersHorizontal className="h-5 w-5" />
-                                        </button>
-
-                                        <div className="h-6 w-px bg-border" />
-                                      </>
-                                    )}
-
-                                    <button
-                                      type="button"
-                                      className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center"
-                                      onPointerDown={(e) => {
-                                        e.stopPropagation();
-                                      }}
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        duplicateFieldOverlay(pageNum, f.id);
-                                      }}
-                                      aria-label="Duplicate field"
-                                      title="Duplicate"
-                                    >
-                                      <Copy className="h-5 w-5" />
-                                    </button>
-
-                                    <div className="h-6 w-px bg-border" />
-
-                                    <button
-                                      type="button"
-                                      className="h-9 w-9 rounded-lg hover:bg-muted flex items-center justify-center"
-                                      onPointerDown={(e) => {
-                                        e.stopPropagation();
-                                      }}
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        deleteOverlay("field", pageNum, f.id);
-                                      }}
-                                      aria-label="Delete field"
-                                      title="Delete"
-                                    >
-                                      <Trash2 className="h-5 w-5" />
-                                    </button>
-                                  </div>
-                                </div>
 
                                 {/* Select/List options editor */}
                                 {isOptionsOpen && (isSelect || isList) && (
@@ -2431,9 +2657,15 @@ export function PDFViewer(props: PDFViewerProps) {
                                   );
                                 })()}
 
+                                <div className="absolute -inset-2 border-[1.5px] border-primary pointer-events-none" />
+
+                                <span className="absolute left-0 top-full mt-0.5 text-[10px] leading-none text-black pointer-events-none">
+                                  {fieldIndex}
+                                </span>
+
                                 <button
                                   type="button"
-                                  className="absolute -top-3 -right-3 h-7 w-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center"
+                                  className="absolute -top-3 -right-3 h-5 w-5 rounded-full bg-white border border-primary shadow-sm flex items-center justify-center z-40"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
@@ -2442,25 +2674,25 @@ export function PDFViewer(props: PDFViewerProps) {
                                   aria-label="Delete field"
                                   title="Delete"
                                 >
-                                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                  <Trash2 className="h-3 w-3 text-primary" />
                                 </button>
 
                                 {(["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const).map((h) => {
                                   const pos: Record<string, React.CSSProperties> = {
-                                    nw: { left: -6, top: -6, cursor: "nwse-resize" },
-                                    n: { left: "50%", top: -6, transform: "translateX(-50%)", cursor: "ns-resize" },
-                                    ne: { right: -6, top: -6, cursor: "nesw-resize" },
-                                    e: { right: -6, top: "50%", transform: "translateY(-50%)", cursor: "ew-resize" },
-                                    se: { right: -6, bottom: -6, cursor: "nwse-resize" },
-                                    s: { left: "50%", bottom: -6, transform: "translateX(-50%)", cursor: "ns-resize" },
-                                    sw: { left: -6, bottom: -6, cursor: "nesw-resize" },
-                                    w: { left: -6, top: "50%", transform: "translateY(-50%)", cursor: "ew-resize" },
+                                    nw: { left: -12, top: -12, cursor: "nwse-resize" },
+                                    n: { left: "50%", top: -12, transform: "translateX(-50%)", cursor: "ns-resize" },
+                                    ne: { right: -12, top: -12, cursor: "nesw-resize" },
+                                    e: { right: -12, top: "50%", transform: "translateY(-50%)", cursor: "ew-resize" },
+                                    se: { right: -12, bottom: -12, cursor: "nwse-resize" },
+                                    s: { left: "50%", bottom: -12, transform: "translateX(-50%)", cursor: "ns-resize" },
+                                    sw: { left: -12, bottom: -12, cursor: "nesw-resize" },
+                                    w: { left: -12, top: "50%", transform: "translateY(-50%)", cursor: "ew-resize" },
                                   };
                                   return (
                                     <div
                                       key={h}
                                       style={pos[h]}
-                                      className="absolute h-3 w-3 rounded-full bg-background border border-primary shadow-sm z-30"
+                                      className="absolute h-2.5 w-2.5 rounded-full bg-white border border-primary z-40"
                                       onPointerDown={(e) =>
                                         startOverlayResize("field", pageNum, f.id, h, e, {
                                           x: left,
@@ -2523,11 +2755,16 @@ export function PDFViewer(props: PDFViewerProps) {
                             }}
                           >
                             <div
-                              className="select-none"
+                              className="select-none whitespace-pre"
                               style={{
                                 fontSize: `${fontSize}px`,
                                 color: textOverlay.color ?? "#000000",
-                                transform: `rotate(${rot}deg)`,
+                                fontFamily: TEXT_FONT_STACK[textOverlay.fontFamily ?? "helvetica"],
+                                fontWeight: textOverlay.bold ? 700 : 400,
+                                fontStyle: textOverlay.italic ? "italic" : "normal",
+                                transform: `translateX(${
+                                  textOverlay.align === "center" ? "-50%" : textOverlay.align === "right" ? "-100%" : "0"
+                                }) rotate(${rot}deg)`,
                                 transformOrigin: "top left",
                               }}
                             >
@@ -2535,91 +2772,50 @@ export function PDFViewer(props: PDFViewerProps) {
                             </div>
 
                             {isSelected && (
-                              <div className="absolute -inset-2">
-                                <div className="absolute inset-0 border-2 border-primary/80 rounded-sm" />
-                                {/* Toolbar */}
-                                <div className="absolute -top-12 left-0 right-0 flex justify-center pointer-events-none">
-                                  <div className="pointer-events-auto flex items-center gap-3 px-3 py-2 rounded-xl border border-border bg-card/95 shadow-lg">
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        const newText = prompt("Edit text:", textOverlay.text);
-                                        if (newText !== null) {
-                                          onTextOverlaysChange(
-                                            textOverlays.map((t) =>
-                                              t.id === textOverlay.id && t.page === pageNum
-                                                ? { ...t, text: newText }
-                                                : t
-                                            )
-                                          );
-                                          onTextOverlaysCommit?.();
-                                        }
-                                      }}
-                                      className="px-3 py-1.5 rounded-lg bg-background hover:bg-muted text-sm font-medium"
-                                    >
-                                      Edit
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        deleteOverlay("text", pageNum, textOverlay.id);
-                                      }}
-                                      className="px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 text-sm font-medium"
-                                    >
-                                      Delete
-                                    </button>
-                                  </div>
-                                </div>
+                              <div className="absolute -inset-2 pointer-events-none">
+                                <div className="absolute inset-0 border-[1.5px] border-primary" />
                               </div>
                             )}
                           </div>
                         );
                       })}
 
-                      {/* Inline text input */}
                       {inlineTextInput && inlineTextInput.page === pageNum && (
                         <div
                           className="absolute"
                           style={{
                             left: inlineTextInput.x,
                             top: inlineTextInput.y,
+                            transform:
+                              textAlign === "center" ? "translateX(-50%)" : textAlign === "right" ? "translateX(-100%)" : undefined,
                             pointerEvents: "auto",
                           }}
                         >
-                          <input
-                            ref={textInputRef}
-                            type="text"
-                            className="px-2 py-1 border-2 border-primary bg-white rounded shadow-lg outline-none"
+                          <div
+                            className="relative px-1"
                             style={{
-                              fontSize: `${inlineTextInput.fontSize ?? textFontSize}px`,
-                              color: inlineTextInput.color ?? textColor,
-                              minWidth: "120px",
+                              outline: `1.5px solid ${SELECT_STROKE}`,
+                              outlineOffset: 8,
                             }}
-                            placeholder="Type text..."
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleInlineTextSubmit(e.currentTarget.value);
-                              } else if (e.key === "Escape") {
-                                e.preventDefault();
+                          >
+                            <InlinePageText
+                              inputRef={textInputRef}
+                              fontSize={textFontSize}
+                              color={textColor}
+                              fontFamily={textFontFamily}
+                              bold={textBold}
+                              italic={textItalic}
+                              onSubmit={handleInlineTextSubmit}
+                              key={inlineTextInput.session}
+                              onCancel={() => {
                                 setInlineTextInput(null);
+                                consumePlacement();
+                              }}
+                              onGuardBlur={() =>
+                                relocatingTextRef.current || Date.now() < ignoreTextBlurUntilRef.current
                               }
-                            }}
-                            onBlur={(e) => {
-                              if (e.currentTarget.value.trim()) {
-                                handleInlineTextSubmit(e.currentTarget.value);
-                              } else {
-                                setInlineTextInput(null);
-                              }
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            onPointerDown={(e) => e.stopPropagation()}
-                          />
+                            />
+                          </div>
                         </div>
                       )}
 
@@ -2641,11 +2837,10 @@ export function PDFViewer(props: PDFViewerProps) {
                         </div>
                       )}
 
-                      {/* Cursor hint for text tool */}
-                      {activeTool === "text" && (
-                        <div className="absolute inset-0 cursor-text pointer-events-none">
+                      {activeTool === "field" && fieldKind && placementArmed && (
+                        <div className="absolute inset-0 cursor-crosshair pointer-events-none">
                           <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-sm font-medium shadow-lg">
-                            Click to add text
+                            Click once to place {fieldKind}
                           </div>
                         </div>
                       )}
@@ -2657,7 +2852,70 @@ export function PDFViewer(props: PDFViewerProps) {
           )}
         </div>
       </div>
+      </div>
     </div>
+  );
+}
+
+function InlinePageText({
+  inputRef,
+  fontSize,
+  color,
+  fontFamily,
+  bold,
+  italic,
+  onSubmit,
+  onCancel,
+  onGuardBlur,
+}: {
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  fontSize: number;
+  color: string;
+  fontFamily: TextFontFamily;
+  bold: boolean;
+  italic: boolean;
+  onSubmit: (text: string) => void;
+  onCancel: () => void;
+  onGuardBlur: () => boolean;
+}) {
+  const [draft, setDraft] = React.useState("");
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      value={draft}
+      autoFocus
+      aria-label="Page text"
+      className="bg-transparent border-0 border-b border-current p-0 m-0 rounded-none shadow-none outline-none"
+      style={{
+        fontSize: `${fontSize}px`,
+        color,
+        fontFamily: TEXT_FONT_STACK[fontFamily],
+        fontWeight: bold ? 700 : 400,
+        fontStyle: italic ? "italic" : "normal",
+        lineHeight: 1.15,
+        caretColor: color,
+        width: `${Math.max(1, draft.length + 1)}ch`,
+      }}
+      onChange={(e) => setDraft(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          onSubmit(e.currentTarget.value);
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          onCancel();
+        }
+      }}
+      onBlur={() => {
+        if (onGuardBlur()) {
+          requestAnimationFrame(() => inputRef.current?.focus());
+        }
+      }}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    />
   );
 }
 

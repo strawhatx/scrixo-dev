@@ -18,3 +18,5 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://scrixo.com/sitemap.xml

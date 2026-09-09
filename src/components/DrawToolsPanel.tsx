@@ -38,7 +38,7 @@ export function DrawToolsPanel({
   const customColorInputRef = useRef<HTMLInputElement>(null);
   const isPresetSelected = presetColors.some((c) => c.toLowerCase() === color.toLowerCase());
   const isCustomSelected = !isPresetSelected;
-  const customSwatchColor = isPresetSelected ? "#ff5a3c" : color;
+  const customSwatchColor = isPresetSelected ? undefined : color;
   const customRainbowBg =
     "conic-gradient(from 0deg, #ff004c, #ff8a00, #ffe600, #18d26b, #00c2ff, #7b61ff, #ff00c8, #ff004c)";
 
@@ -66,7 +66,7 @@ export function DrawToolsPanel({
               className={cn(
                 "h-9 w-full rounded-lg flex items-center justify-center border transition-colors",
                 tool === id
-                  ? "border-[#ff5a3c]/40 bg-[#ff5a3c]/10 text-[#ff5a3c]"
+                  ? "border-primary/40 bg-primary/10 text-primary"
                   : "border-border bg-background hover:bg-muted text-foreground"
               )}
               aria-label={label}
@@ -97,7 +97,7 @@ export function DrawToolsPanel({
                   onClick={() => onColorChange(c)}
                   className={cn(
                     "h-7 w-7 rounded-full border flex items-center justify-center transition-transform",
-                    isSelected ? "border-[#ff5a3c] ring-2 ring-[#ff5a3c]/30" : "border-border hover:scale-105"
+                    isSelected ? "border-primary ring-2 ring-primary/30" : "border-border hover:scale-105"
                   )}
                   aria-label={`Color ${c}`}
                   title={c}
@@ -120,7 +120,7 @@ export function DrawToolsPanel({
               className={cn(
                 "h-7 w-7 rounded-full border flex items-center justify-center transition-transform",
                 isCustomSelected
-                  ? "border-[#ff5a3c] ring-2 ring-[#ff5a3c]/30 shadow-sm"
+                  ? "border-primary ring-2 ring-primary/30 shadow-sm"
                   : "border-border hover:scale-105"
               )}
               aria-label="Custom color"
@@ -191,7 +191,7 @@ export function DrawToolsMobileBar({
   const customColorInputRef = useRef<HTMLInputElement>(null);
   const isPresetSelected = presetColors.some((c) => c.toLowerCase() === color.toLowerCase());
   const isCustomSelected = !isPresetSelected;
-  const customSwatchColor = isPresetSelected ? "#ff5a3c" : color;
+  const customSwatchColor = isPresetSelected ? undefined : color;
   const customRainbowBg =
     "conic-gradient(from 0deg, #ff004c, #ff8a00, #ffe600, #18d26b, #00c2ff, #7b61ff, #ff00c8, #ff004c)";
 
@@ -214,7 +214,7 @@ export function DrawToolsMobileBar({
               className={cn(
                 "h-9 w-9 rounded-lg flex items-center justify-center border transition-colors touch-manipulation",
                 tool === id
-                  ? "border-[#ff5a3c]/40 bg-[#ff5a3c]/10 text-[#ff5a3c]"
+                  ? "border-primary/40 bg-primary/10 text-primary"
                   : "border-border bg-background hover:bg-muted text-foreground"
               )}
               aria-label={label}
@@ -246,7 +246,7 @@ export function DrawToolsMobileBar({
                 onClick={() => onColorChange(c)}
                 className={cn(
                   "h-7 w-7 rounded-full border flex items-center justify-center transition-transform touch-manipulation",
-                  isSelected ? "border-[#ff5a3c] ring-2 ring-[#ff5a3c]/30" : "border-border active:scale-95"
+                  isSelected ? "border-primary ring-2 ring-primary/30" : "border-border active:scale-95"
                 )}
                 aria-label={`Color ${c}`}
                 title={c}
@@ -269,7 +269,7 @@ export function DrawToolsMobileBar({
             className={cn(
               "h-7 w-7 rounded-full border flex items-center justify-center transition-transform touch-manipulation",
               isCustomSelected
-                ? "border-[#ff5a3c] ring-2 ring-[#ff5a3c]/30 shadow-sm"
+                ? "border-primary ring-2 ring-primary/30 shadow-sm"
                 : "border-border active:scale-95"
             )}
             aria-label="Custom color"

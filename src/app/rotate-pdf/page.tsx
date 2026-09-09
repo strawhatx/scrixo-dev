@@ -1,18 +1,22 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/brand";
 import { SEOToolPage } from "@/components/SEOToolPage";
 
 export const metadata: Metadata = {
   title: "Rotate PDF Pages Online Free - Fix Sideways PDFs | Scrixo",
   description: "Rotate PDF pages online free with no login required. Turn PDF pages upright, fix sideways PDFs, rotate scanned PDFs, and rotate PDF instantly. Free PDF rotator with no watermark.",
   keywords: "rotate pdf pages online free, turn pdf pages upright, rotate pdf no login, fix sideways pdf online, rotate scanned pdf free, rotate pdf instantly",
+  robots: { index: false, follow: false },
   openGraph: {
     title: "Rotate PDF Pages Online Free - Fix Sideways PDFs",
     description: "Rotate PDF pages online free with no login required. Turn PDF pages upright, fix sideways PDFs, rotate scanned PDFs, and rotate PDF instantly.",
     url: "https://scrixo.com/rotate-pdf",
     siteName: "Scrixo",
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
+    images: ogImages,
     title: "Rotate PDF Pages Online Free - Fix Sideways PDFs",
     description: "Rotate PDF pages online free with no login required. Turn PDF pages upright, fix sideways PDFs, rotate scanned PDFs, and rotate PDF instantly.",
   },

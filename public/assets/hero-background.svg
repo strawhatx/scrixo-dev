@@ -1,0 +1,19 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="bgfade" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#F4F7FC"/>
+<stop offset="1" stop-color="#FFFFFF"/>
+</linearGradient>
+</defs>
+<rect width="1600" height="900" fill="url(#bgfade)"/>
+<circle cx="1420" cy="90" r="260" fill="#0F2A5C" opacity="0.06"/>
+<circle cx="120" cy="820" r="220" fill="#0F2A5C" opacity="0.05"/>
+<circle cx="1500" cy="760" r="90" fill="#FF7A29" opacity="0.08"/>
+<g stroke="#0F2A5C" stroke-opacity="0.06" stroke-width="1">
+<line x1="0" y1="150" x2="1600" y2="150"/>
+<line x1="0" y1="300" x2="1600" y2="300"/>
+<line x1="0" y1="450" x2="1600" y2="450"/>
+<line x1="0" y1="600" x2="1600" y2="600"/>
+<line x1="0" y1="750" x2="1600" y2="750"/>
+</g>
+</svg>

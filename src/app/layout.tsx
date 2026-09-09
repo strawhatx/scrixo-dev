@@ -1,23 +1,8 @@
 import type { Metadata } from "next";
-import Script from "next/script";
-import {
-  Cedarville_Cursive,
-  Dawning_of_a_New_Day,
-  Homemade_Apple,
-  Inter,
-  Kristi,
-  Mr_Dafoe,
-  Ms_Madi,
-  Nanum_Pen_Script,
-  Plus_Jakarta_Sans,
-  Rock_Salt,
-  Sacramento,
-  Schoolbell,
-  Mrs_Saint_Delafield,
-  Zeyada,
-} from "next/font/google";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "../lib/providers";
+import { BRAND, ogImages } from "@/lib/brand";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -29,59 +14,42 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-display",
 });
 
-// Signature fonts (typed signature picker)
-const sigSacramento = Sacramento({ subsets: ["latin"], weight: "400", variable: "--font-sig-sacramento" });
-const sigZeyada = Zeyada({ subsets: ["latin"], weight: "400", variable: "--font-sig-zeyada" });
-const sigNanumPenScript = Nanum_Pen_Script({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-sig-nanum-pen-script",
-});
-const sigMrDafoe = Mr_Dafoe({ subsets: ["latin"], weight: "400", variable: "--font-sig-mr-dafoe" });
-const sigHomemadeApple = Homemade_Apple({ subsets: ["latin"], weight: "400", variable: "--font-sig-homemade-apple" });
-const sigRockSalt = Rock_Salt({ subsets: ["latin"], weight: "400", variable: "--font-sig-rock-salt" });
-const sigMrsSaintDelafield = Mrs_Saint_Delafield({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-sig-mrs-saint-delafield",
-});
-const sigCedarvilleCursive = Cedarville_Cursive({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-sig-cedarville-cursive",
-});
-const sigKristi = Kristi({ subsets: ["latin"], weight: "400", variable: "--font-sig-kristi" });
-const sigDawningOfANewDay = Dawning_of_a_New_Day({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-sig-dawning-of-a-new-day",
-});
-const sigSchoolbell = Schoolbell({ subsets: ["latin"], weight: "400", variable: "--font-sig-schoolbell" });
-const sigMsMadi = Ms_Madi({ subsets: ["latin"], weight: "400", variable: "--font-sig-ms-madi" });
-
 export const metadata: Metadata = {
-  title: "Scrixo",
-  description: "Edit PDF documents no signup required",
-  keywords: "edit pdf online, sign pdf free, pdf editor, electronic signature, modify pdf text, free pdf tool",
+  metadataBase: new URL("https://scrixo.com"),
+  title: "Sign a PDF Free — No Account, No Printing | Scrixo",
+  description:
+    "Sign a PDF free in your browser. No account, no printing, no scanning. Draw or type your signature and download a clean file you can send back.",
+  keywords: "sign pdf free, sign a pdf, sign pdf without printing, electronic signature, sign pdf no account, pdf signer",
+  icons: {
+    icon: [
+      { url: BRAND.icon, type: "image/svg+xml" },
+      { url: BRAND.icon16, sizes: "16x16", type: "image/png" },
+      { url: BRAND.icon32, sizes: "32x32", type: "image/png" },
+      { url: BRAND.icon192, sizes: "192x192", type: "image/png" },
+      { url: BRAND.icon512, sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: BRAND.icon180, sizes: "180x180", type: "image/png" }],
+  },
   openGraph: {
-    title: "Scrixo",
-    description: "Edit PDF documents no signup required",
+    title: "Sign a PDF Free — No Account, No Printing | Scrixo",
+    description:
+      "Sign a PDF free in your browser. No account, no printing, no scanning. Draw or type your signature and download instantly.",
     url: "https://scrixo.com",
     siteName: "Scrixo",
-    images: ["https://scrixo.com/og-image.png"],
+    images: ogImages,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Scrixo",
-    description: "Edit PDF documents no signup required",
-    images: ["https://scrixo.com/og-image.png"],
+    title: "Sign a PDF Free — No Account, No Printing | Scrixo",
+    description:
+      "Sign a PDF free in your browser. No account, no printing, no scanning. Draw or type your signature and download instantly.",
+    images: ogImages,
   },
-};;
-
+};
 
 export default function RootLayout({
   children,
-}: Readonly<{ children: React.ReactNode; }>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
       <head>
@@ -92,22 +60,9 @@ export default function RootLayout({
         className={[
           inter.variable,
           plusJakartaSans.variable,
-          sigSacramento.variable,
-          sigZeyada.variable,
-          sigNanumPenScript.variable,
-          sigMrDafoe.variable,
-          sigHomemadeApple.variable,
-          sigRockSalt.variable,
-          sigMrsSaintDelafield.variable,
-          sigCedarvilleCursive.variable,
-          sigKristi.variable,
-          sigDawningOfANewDay.variable,
-          sigSchoolbell.variable,
-          sigMsMadi.variable,
           "font-sans antialiased bg-background text-foreground",
         ].join(" ")}
       >
-
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-N78CJW97VM"></script>
         <script
           dangerouslySetInnerHTML={{

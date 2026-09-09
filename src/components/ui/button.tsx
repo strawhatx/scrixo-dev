@@ -9,14 +9,14 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-glow",
+        default: "bg-primary text-primary-foreground hover:bg-primary-hover shadow-md hover:shadow-glow",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline: "border-2 border-primary bg-transparent text-primary hover:bg-primary hover:text-primary-foreground",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-secondary hover:text-secondary-foreground",
         link: "text-primary underline-offset-4 hover:underline",
         // Hero CTA - accent color with glow
-        hero: "bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg hover:shadow-accent-glow hover:-translate-y-0.5",
+        hero: "bg-accent text-accent-foreground hover:bg-accent-hover shadow-lg hover:shadow-accent-glow hover:-translate-y-0.5",
         // Soft outline for secondary actions on hero
         "hero-outline": "border-2 border-foreground/20 bg-card/50 text-foreground backdrop-blur-sm hover:bg-card hover:border-primary hover:text-primary",
         // Toolbar buttons

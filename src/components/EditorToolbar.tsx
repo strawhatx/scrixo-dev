@@ -1,19 +1,11 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
+import React from "react";
 import { 
   MousePointer2,
-  PenLine, 
-  Pencil,
-  ImageIcon,
+  PenLine,
   FormInput,
   Type,
-  Combine,
-  SplitSquareHorizontal,
-  LayoutGrid,
-  RotateCw,
-  MoreHorizontal,
   Undo2, 
   Redo2,
   Minus,
@@ -51,19 +43,14 @@ interface EditorToolbarProps {
 const tools = [
   { id: "select" as ToolType, icon: MousePointer2, label: "Select" },
   { id: "sign" as ToolType, icon: PenLine, label: "Sign" },
-  { id: "draw" as ToolType, icon: Pencil, label: "Draw" },
-  { id: "image" as ToolType, icon: ImageIcon, label: "Image" },
   { id: "field" as ToolType, icon: FormInput, label: "Field" },
   { id: "text" as ToolType, icon: Type, label: "Text" },
+  // Phase 5 (hidden from v1 sign-focus launch): draw, image
 ];
 
-const actions = [
-  { id: "merge" as ToolType, icon: Combine, label: "Merge" },
-  { id: "split" as ToolType, icon: SplitSquareHorizontal, label: "Split" },
-  { id: "rearrange" as ToolType, icon: LayoutGrid, label: "Rearrange" },
-  { id: "rotate" as ToolType, icon: RotateCw, label: "Rotate" },
-  { id: "more" as ToolType, icon: MoreHorizontal, label: "More" },
-];
+// Phase 5 candidates — ToolType union and Editor handlers stay in place.
+// Merge / split / rearrange / rotate are hidden from the v1 toolbar, not deleted.
+const actions: Array<{ id: ToolType; icon: typeof PenLine; label: string }> = [];
 
 export function EditorToolbar({
   activeTool,
@@ -93,23 +80,26 @@ export function EditorToolbar({
               <span className="text-[10px] font-medium">{tool.label}</span>
             </button>
           ))}
-          
-          <Separator orientation="vertical" className="h-10 mx-2" />
-          
-          {actions.map((action) => (
-            <button
-              key={action.id}
-              onClick={() => onToolChange(action.id)}
-              className={`flex flex-col items-center justify-center px-3 py-1 rounded-lg transition-colors min-w-[48px] ${
-                activeTool === action.id
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <action.icon className="w-5 h-5 mb-0.5" />
-              <span className="text-[10px] font-medium">{action.label}</span>
-            </button>
-          ))}
+
+          {actions.length > 0 && (
+            <>
+              <Separator orientation="vertical" className="h-10 mx-2" />
+              {actions.map((action) => (
+                <button
+                  key={action.id}
+                  onClick={() => onToolChange(action.id)}
+                  className={`flex flex-col items-center justify-center px-3 py-1 rounded-lg transition-colors min-w-[48px] ${
+                    activeTool === action.id
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  <action.icon className="w-5 h-5 mb-0.5" />
+                  <span className="text-[10px] font-medium">{action.label}</span>
+                </button>
+              ))}
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-1">
@@ -167,65 +157,56 @@ export function EditorFloatingControls({
   canUndo: boolean;
   canRedo: boolean;
 }) {
-  const [mounted, setMounted] = useState(false);
-  const isMobile = useIsMobile();
-  useEffect(() => setMounted(true), []);
+  return (
+    <div className="flex items-center gap-1 bg-card/90 backdrop-blur-md border border-border shadow-lg rounded-full px-2 py-1">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onUndo}
+        disabled={!canUndo}
+        className="w-9 h-9"
+        aria-label="Undo"
+      >
+        <Undo2 className="w-4 h-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onRedo}
+        disabled={!canRedo}
+        className="w-9 h-9"
+        aria-label="Redo"
+      >
+        <Redo2 className="w-4 h-4" />
+      </Button>
 
-  const content = useMemo(() => {
-    if (isMobile) return null;
-    
-    return (
-      <div className="pointer-events-none fixed inset-x-0 bottom-4 pb-[env(safe-area-inset-bottom)] flex justify-center z-[60]">
-        <div className="pointer-events-auto flex items-center gap-1 bg-card/80 backdrop-blur-md border border-border shadow-lg rounded-full px-2 py-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onUndo}
-            disabled={!canUndo}
-            className="w-9 h-9"
-          >
-            <Undo2 className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onRedo}
-            disabled={!canRedo}
-            className="w-9 h-9"
-          >
-            <Redo2 className="w-4 h-4" />
-          </Button>
+      <Separator orientation="vertical" className="h-6 mx-1" />
 
-          <Separator orientation="vertical" className="h-6 mx-1" />
-
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onZoomOut}
-            disabled={zoom <= 50}
-            className="w-9 h-9"
-          >
-            <Minus className="w-4 h-4" />
-          </Button>
-          <span className="text-sm font-semibold text-foreground w-12 text-center tabular-nums">
-            {zoom}%
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onZoomIn}
-            disabled={zoom >= 200}
-            className="w-9 h-9"
-          >
-            <Plus className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
-    );
-  }, [canRedo, canUndo, onRedo, onUndo, onZoomIn, onZoomOut, zoom, isMobile]);
-
-  if (!mounted || isMobile) return null;
-  return createPortal(content, document.body);
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onZoomOut}
+        disabled={zoom <= 50}
+        className="w-9 h-9"
+        aria-label="Zoom out"
+      >
+        <Minus className="w-4 h-4" />
+      </Button>
+      <span className="text-sm font-semibold text-foreground w-12 text-center tabular-nums">
+        {zoom}%
+      </span>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onZoomIn}
+        disabled={zoom >= 200}
+        className="w-9 h-9"
+        aria-label="Zoom in"
+      >
+        <Plus className="w-4 h-4" />
+      </Button>
+    </div>
+  );
 }
 
 // Mobile Top Header Controls

@@ -1,0 +1,12 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+<rect x="0" y="0" width="1200" height="630" fill="#0F2A5C"/>
+<circle cx="1080" cy="80" r="220" fill="#16386E"/>
+<circle cx="90" cy="580" r="180" fill="#16386E"/>
+<g transform="translate(370,215)">
+  <rect x="0" y="0" width="140" height="140" rx="30" fill="#16386E"/>
+  <path d="M28,84 C44,40 78,40 92,64 C106,88 122,56 126,30" fill="none" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="126" cy="30" r="8" fill="#FF7A29"/>
+</g>
+<text x="600" y="410" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="600" fill="#FFFFFF">scrixo</text>
+<text x="600" y="460" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="400" fill="#B9C6E0">Sign a PDF free, right in your browser</text>
+</svg>
