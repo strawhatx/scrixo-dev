@@ -85,6 +85,11 @@ export const HOME_FAQS: FAQItem[] = [
     answer:
       "Download it, then attach it to the same email or portal. Step-by-step: [how to sign a PDF and send it back](/how-to-sign-pdf-and-send-back).",
   },
+  {
+    question: "Is a Scrixo signature legally valid?",
+    answer:
+      "For most everyday documents, a standard electronic signature is recognized under the ESIGN Act, UETA, and similar rules (including eIDAS simple signatures in the EU). Wills, court filings, and some notarized papers need a different process. Scrixo does not record an audit trail. Details: [Terms](/terms).",
+  },
 ];
 
 export function relatedLinksFor(pathname: string): RelatedLink[] {

@@ -37,6 +37,14 @@ export function SiteFooter({ year }: { year?: number }) {
           <BrandLogo variant="mark" className="h-8 w-8" />
           <span>© {y} scrixo</span>
           <span aria-hidden="true">·</span>
+          <Link href="/terms" className="hover:text-foreground">
+            Terms
+          </Link>
+          <span aria-hidden="true">·</span>
+          <Link href="/privacy" className="hover:text-foreground">
+            Privacy
+          </Link>
+          <span aria-hidden="true">·</span>
           <a
             href="https://x.com/heynathanielj"
             target="_blank"

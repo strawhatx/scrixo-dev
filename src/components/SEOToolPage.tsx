@@ -172,6 +172,18 @@ export function SEOToolPage({
                   }}
                 />
               </div>
+
+              <p className="text-center text-xs text-muted-foreground max-w-xl mx-auto">
+                Standard electronic signature for everyday documents — not wills, court filings, or
+                notarized papers. The PDF stays in your browser.{" "}
+                <Link href="/terms" className="font-semibold text-accent hover:underline">
+                  Terms
+                </Link>
+                {" · "}
+                <Link href="/privacy" className="font-semibold text-accent hover:underline">
+                  Privacy
+                </Link>
+              </p>
             </div>
           </Card>
 
@@ -200,7 +212,7 @@ export function SEOToolPage({
                 </div>
                 <div>
                   <h3 className="font-bold text-lg mb-1">Stays on your device</h3>
-                  <p className="text-sm text-muted-foreground">Guest signing happens locally in your browser. No account required.</p>
+                  <p className="text-sm text-muted-foreground">Your document never leaves your device. Guest signing stays in the browser.</p>
                 </div>
               </div>
             </Card>

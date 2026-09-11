@@ -68,7 +68,7 @@ export default function SignPDFElectronicallyPage() {
         {
           question: "Are electronic signatures legally valid?",
           answer:
-            "For many ordinary documents in the US and elsewhere, yes — electronic signatures are recognized by law. Some documents still require wet ink, a notary, or a specific vendor. Follow the instructions that came with the form if they are specific.",
+            "For many ordinary documents in the US and elsewhere, yes — electronic signatures are recognized by law (ESIGN, UETA, and similar rules). Some documents still require wet ink, a notary, or a specific vendor. Scrixo does not record an audit trail. See [Terms](/terms).",
         },
         {
           question: "Do I need an account to sign electronically?",

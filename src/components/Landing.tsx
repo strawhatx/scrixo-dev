@@ -221,7 +221,7 @@ export default function Landing() {
                 </div>
                 <div>
                   <h4 className="font-semibold mb-1">Private by default</h4>
-                  <p className="text-sm text-gray-600">Guest files stay in the browser. No account needed to sign.</p>
+                  <p className="text-sm text-gray-600">Your document never leaves your device. No account needed to sign.</p>
                 </div>
               </div>
 
@@ -290,9 +290,21 @@ export default function Landing() {
                 <Shield className="h-5 w-5" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl md:text-2xl font-black tracking-tight">Your files stay private</h2>
+                <h2 className="text-xl md:text-2xl font-black tracking-tight">Your document never leaves your device</h2>
                 <p className="text-muted-foreground/80 font-medium max-w-2xl">
-                  Guest signing runs in your browser. We don&apos;t need an account to let you sign and download.
+                  Guest signing runs in your browser. The PDF is not uploaded to Scrixo. We don&apos;t
+                  need an account to let you sign and download.{" "}
+                  <Link href="/privacy" className="text-accent hover:underline">
+                    Privacy
+                  </Link>
+                </p>
+                <p className="text-sm text-muted-foreground/80 max-w-2xl">
+                  Scrixo produces a standard electronic signature for everyday documents (ESIGN,
+                  UETA, eIDAS). It is not for wills, court filings, or papers that require a
+                  notary. No audit trail is recorded.{" "}
+                  <Link href="/terms" className="text-accent hover:underline">
+                    Terms
+                  </Link>
                 </p>
               </div>
             </div>

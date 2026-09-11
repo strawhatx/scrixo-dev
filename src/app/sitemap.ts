@@ -14,6 +14,8 @@ const paths: Array<{ path: string; priority: number }> = [
   { path: "/fill-pdf", priority: 0.7 },
   { path: "/how-to-sign-pdf-and-send-back", priority: 0.6 },
   { path: "/sign-pdf-electronically", priority: 0.5 },
+  { path: "/terms", priority: 0.2 },
+  { path: "/privacy", priority: 0.2 },
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
